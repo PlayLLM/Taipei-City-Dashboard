@@ -53,18 +53,24 @@ ON CONFLICT DO NOTHING;
 
 -- 3. 補齊 public.components 缺少的 rows
 --    (循環杯、環保餐廳與機車充電站的 component SQL 沒有寫入 public.components)
+DELETE FROM public.components WHERE index IN (
+    'metrotaipei_reusable_cup',
+    'metrotaipei_eco_restaurant',
+    'metrotaipei_scooter_charging'
+);
+
 INSERT INTO public.components (id, index, name) VALUES
-    (301, 'metrotaipei_reusable_cup',     '雙北各區循環杯門市數量'),
-    (302, 'metrotaipei_eco_restaurant',   '雙北各區環保餐廳數量'),
-    (303, 'metrotaipei_scooter_charging', '雙北各區機車充電站數量')
-ON CONFLICT (id) DO UPDATE
-SET index = EXCLUDED.index,
+    (311, 'metrotaipei_reusable_cup',     '雙北各區循環杯門市數量'),
+    (312, 'metrotaipei_eco_restaurant',   '雙北各區環保餐廳數量'),
+    (313, 'metrotaipei_scooter_charging', '雙北各區機車充電站數量')
+ON CONFLICT (index) DO UPDATE
+SET id = EXCLUDED.id,
     name  = EXCLUDED.name;
 
 -- 4. 將 5 個組件依序掛到 circular-economy dashboard（idempotent）
 DO $$
 DECLARE
-    target_components INT[] := ARRAY[301, 302, 303, 305, 500];
+    target_components INT[] := ARRAY[311, 312, 313, 314, 500];
     component_id INT;
 BEGIN
     FOREACH component_id IN ARRAY target_components LOOP

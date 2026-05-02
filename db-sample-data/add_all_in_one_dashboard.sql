@@ -35,15 +35,17 @@ DELETE FROM public.components WHERE index IN (
     'metrotaipei_eco_restaurant',
     'metrotaipei_scooter_charging',
     'metrotaipei_drinking_fountain',
+    'metrotaipei_used_clothing_box',
     'green_store_distribution',
     'eco_hotel'
 );
 
 INSERT INTO public.components (id, index, name) VALUES
-    (301, 'metrotaipei_reusable_cup', '雙北各區循環杯門市數量'),
-    (304, 'metrotaipei_eco_restaurant', '雙北各區環保餐廳數量'),
-    (309, 'metrotaipei_scooter_charging', '雙北各區機車充電站數量'),
-    (305, 'metrotaipei_drinking_fountain', '飲水機與直飲臺分布'),
+    (311, 'metrotaipei_reusable_cup', '雙北各區循環杯門市數量'),
+    (312, 'metrotaipei_eco_restaurant', '雙北各區環保餐廳數量'),
+    (313, 'metrotaipei_scooter_charging', '雙北各區機車充電站數量'),
+    (314, 'metrotaipei_drinking_fountain', '飲水機與直飲臺分布'),
+    (315, 'metrotaipei_used_clothing_box', '雙北各區舊衣回收箱數量'),
     (308, 'green_store_distribution', '綠色商店分布'),
     (500, 'eco_hotel', '環保旅宿')
 ON CONFLICT (index) DO UPDATE
@@ -52,7 +54,7 @@ SET id = EXCLUDED.id,
 
 DO $$
 DECLARE
-    target_components INT[] := ARRAY[301, 304, 309, 305, 308, 500];
+    target_components INT[] := ARRAY[311, 312, 313, 314, 315, 308, 500];
     component_id INT;
 BEGIN
     UPDATE public.dashboards

@@ -111,16 +111,16 @@ INSERT INTO public.query_charts (
 
 -- 4. 補齊 public.components 缺少的 rows
 INSERT INTO public.components (id, index, name)
-VALUES (307, 'metrotaipei_used_clothing_box', '雙北各區舊衣回收箱數量')
+VALUES (315, 'metrotaipei_used_clothing_box', '雙北各區舊衣回收箱數量')
 ON CONFLICT (index) DO UPDATE
 SET id = EXCLUDED.id,
     name  = EXCLUDED.name;
 
 -- 5. 將組件掛到「循環經濟」儀表板 (id: 402, index: circular-economy)
 UPDATE public.dashboards
-SET components = array_append(COALESCE(components, '{}'), 307),
+SET components = array_append(COALESCE(components, '{}'), 315),
     updated_at = NOW()
 WHERE index = 'circular-economy'
-  AND NOT 307 = ANY(COALESCE(components, '{}'));
+  AND NOT 315 = ANY(COALESCE(components, '{}'));
 
 COMMIT;

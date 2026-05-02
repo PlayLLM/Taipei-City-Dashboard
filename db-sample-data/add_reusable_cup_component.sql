@@ -19,6 +19,13 @@ SET color = EXCLUDED.color,
     types = EXCLUDED.types,
     unit = EXCLUDED.unit;
 
+-- 1b. 確保組件存在
+INSERT INTO public.components (id, index, name)
+VALUES (311, 'metrotaipei_reusable_cup', '雙北各區循環杯門市數量')
+ON CONFLICT (index) DO UPDATE
+SET id = EXCLUDED.id,
+    name = EXCLUDED.name;
+
 -- 2. 地圖圖層設定
 INSERT INTO public.component_maps (id, index, title, type, source, size, icon, paint, property)
 VALUES (

@@ -37,9 +37,9 @@ WHERE d.index = 'climate-environment'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.components (id, index, name)
-VALUES (305, 'metrotaipei_drinking_fountain', '飲水機與直飲臺分布')
-ON CONFLICT (id) DO UPDATE
-SET index = EXCLUDED.index,
+VALUES (314, 'metrotaipei_drinking_fountain', '飲水機與直飲臺分布')
+ON CONFLICT (index) DO UPDATE
+SET id = EXCLUDED.id,
     name = EXCLUDED.name;
 
 INSERT INTO public.component_charts (index, color, types, unit)
@@ -159,9 +159,9 @@ INSERT INTO public.query_charts (
 );
 
 UPDATE public.dashboards
-SET components = array_append(components, 305),
+SET components = array_append(components, 314),
     updated_at = NOW()
 WHERE index = 'climate-environment'
-  AND NOT 305 = ANY(components);
+  AND NOT 314 = ANY(components);
 
 COMMIT;
