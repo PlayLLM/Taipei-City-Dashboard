@@ -3,7 +3,21 @@ from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import VectorParams, Distance, PointStruct
 import os
+import hashlib
 from sqlalchemy import create_engine
+
+
+def qdrant_point_key(row):
+    return f"{row['id']}:{row['index']}:{row['city']}"
+
+
+def qdrant_point_id(row):
+    return int.from_bytes(
+        hashlib.sha256(qdrant_point_key(row).encode("utf-8")).digest()[:8],
+        "big",
+        signed=False,
+    )
+
 
 def main():
     print("開始向量資料庫升級...")
@@ -83,10 +97,11 @@ def main():
     print("上傳向量資料...")
     points = [
         PointStruct(
-            id=row["id"],
+            id=qdrant_point_id(row),
             vector=v.tolist(),
             payload={
                 "id": row["id"],
+                "point_key": qdrant_point_key(row),
                 "index": row["index"],
                 "name": row["name"],
                 "city": row["city"],

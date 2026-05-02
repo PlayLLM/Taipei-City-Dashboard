@@ -51,18 +51,19 @@ func initDashboardConfigs() {
 }
 
 func addRoles() {
-	// create init roles[admin/editor/viewer]
-	_, err := models.CreateRole("admin", true, true, true)
-	if err != nil {
-		logs.FError("Failed to create admin role:%s", err)
+	ensureRole("admin", true, true, true)
+	ensureRole("editor", false, true, true)
+	ensureRole("viewer", false, false, true)
+}
+
+func ensureRole(roleName string, accessControl, modify, read bool) {
+	if roleID, err := models.GetRoleIDByName(roleName); err == nil {
+		logs.FInfo("role %s already exists with id:%d", roleName, roleID)
+		return
 	}
-	_, err = models.CreateRole("editor", false, true, true)
-	if err != nil {
-		logs.FError("Failed to create editor role:%s", err)
-	}
-	_, err = models.CreateRole("viewer", false, false, true)
-	if err != nil {
-		logs.FError("Failed to create viewer role:%s", err)
+
+	if _, err := models.CreateRole(roleName, accessControl, modify, read); err != nil {
+		logs.FError("Failed to create %s role:%s", roleName, err)
 	}
 }
 
@@ -95,7 +96,13 @@ func createAdmin() {
 
 	adminUserID, err := models.CreateUser(userName, &email, &password, &isAdmin, &isActive, &isWhitelist, &isBlacked, nil)
 	if err != nil {
-		logs.FError("Failed to create user:%s", err)
+		existingUser, lookupErr := models.GetUserByEmail(email)
+		if lookupErr != nil {
+			logs.FError("Failed to create user:%s", err)
+			return
+		}
+		adminUserID = existingUser.ID
+		logs.FInfo("admin user already exists with id:%d", adminUserID)
 	}
 	logs.FInfo("create admin: %s success", userName)
 
