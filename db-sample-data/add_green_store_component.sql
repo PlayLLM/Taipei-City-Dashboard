@@ -97,24 +97,24 @@ VALUES
     1,
     'month',
     '環境部',
-    '顯示臺北市各行政區綠色商店數量與通路品牌分布。',
-    '此圖表彙整臺北市綠色商店資料，以行政區與通路品牌統計店數。熱力圖呈現各行政區不同通路品牌的分布，行政區圖呈現各區綠色商店總量。',
+    '顯示臺北市各行政區綠色商店數量與通路分類分布。',
+    '此圖表彙整臺北市綠色商店資料，以行政區與通路分類統計店數。熱力圖呈現各行政區不同通路分類的分布，行政區圖呈現各區綠色商店總量。',
     '可用於了解臺北市綠色消費據點分布，作為環境教育、綠色採購推廣與服務可近性分析參考。',
     '{https://greenliving.epa.gov.tw/}',
     '{doit}',
     NOW(),
     NOW(),
     'three_d',
-    'WITH brand_order(brand, sort_order) AS (
+    'WITH category_order(category, sort_order) AS (
         VALUES
-            (''7-ELEVEN'', 1),
-            (''全家'', 2),
-            (''萊爾富'', 3),
-            (''全國電子'', 4),
-            (''燦坤'', 5),
-            (''全聯'', 6),
-            (''寶雅'', 7),
-            (''其他'', 8)
+            (''其他'', 1),
+            (''五金居家'', 2),
+            (''美妝生活'', 3),
+            (''交通相關'', 4),
+            (''量販/超市'', 5),
+            (''通訊服務'', 6),
+            (''3C/家電'', 7),
+            (''便利商店'', 8)
      ),
      district_order(district, sort_order) AS (
         VALUES
@@ -131,19 +131,34 @@ VALUES
             (''大安區'', 11),
             (''文山區'', 12)
      ),
-     counts AS (
-        SELECT district, brand, COUNT(*)::int AS store_count
+     stores AS (
+        SELECT
+            district,
+            CASE
+                WHEN name ~* ''^(7-?11|7－11|7-ELEVEN|統一超商|OPEN|全家|萊爾富|OK|來來超商)'' THEN ''便利商店''
+                WHEN name ~* ''(全國電子|燦坤|大同3C|大同綜合訊電|象印|台象|家電|電器)'' THEN ''3C/家電''
+                WHEN name ~* ''(中華電信|遠傳|台灣大哥大|臺灣大哥大|台灣之星|亞太電信|神腦)'' THEN ''通訊服務''
+                WHEN name ~* ''(全聯|家樂福|大潤發|愛買|頂好|Wellcome|棉花田|聖德科斯|超市|量販)'' THEN ''量販/超市''
+                WHEN name ~* ''(汽車|TOYOTA|Toyota|國都|固德|鴻源|和泰|加油站|機車|交通)'' THEN ''交通相關''
+                WHEN name ~* ''(寶雅|屈臣氏|康是美|小三美日|美華泰|美妝|生活百貨)'' THEN ''美妝生活''
+                WHEN name ~* ''(小北百貨|特力屋|HOLA|IKEA|宜家|五金|居家)'' THEN ''五金居家''
+                ELSE ''其他''
+            END AS category
         FROM public.green_store_tpe
-        GROUP BY district, brand
+     ),
+     counts AS (
+        SELECT district, category, COUNT(*)::int AS store_count
+        FROM stores
+        GROUP BY district, category
      )
      SELECT
         d.district AS x_axis,
-        b.brand AS y_axis,
-        COALESCE(c.store_count, 0)::int AS data
-     FROM brand_order b
+        co.category AS y_axis,
+        COALESCE(cnt.store_count, 0)::int AS data
+     FROM category_order co
      CROSS JOIN district_order d
-     LEFT JOIN counts c ON c.district = d.district AND c.brand = b.brand
-     ORDER BY b.sort_order, d.sort_order',
+     LEFT JOIN counts cnt ON cnt.district = d.district AND cnt.category = co.category
+     ORDER BY co.sort_order, d.sort_order',
     NULL,
     'taipei'
 ),
@@ -157,24 +172,24 @@ VALUES
     1,
     'month',
     '環境部',
-    '顯示雙北各行政區綠色商店數量與通路品牌分布。',
-    '此圖表彙整臺北市與新北市綠色商店資料，以行政區與通路品牌統計店數。熱力圖呈現各行政區不同通路品牌的分布，行政區圖呈現各區綠色商店總量。',
+    '顯示雙北各行政區綠色商店數量與通路分類分布。',
+    '此圖表彙整臺北市與新北市綠色商店資料，以行政區與通路分類統計店數。熱力圖呈現各行政區不同通路分類的分布，行政區圖呈現各區綠色商店總量。',
     '可用於比較雙北綠色消費據點分布，作為環境教育、綠色採購推廣與服務可近性分析參考。',
     '{https://greenliving.epa.gov.tw/}',
     '{doit,ntpc}',
     NOW(),
     NOW(),
     'three_d',
-    'WITH brand_order(brand, sort_order) AS (
+    'WITH category_order(category, sort_order) AS (
         VALUES
-            (''7-ELEVEN'', 1),
-            (''全家'', 2),
-            (''萊爾富'', 3),
-            (''全國電子'', 4),
-            (''燦坤'', 5),
-            (''全聯'', 6),
-            (''寶雅'', 7),
-            (''其他'', 8)
+            (''其他'', 1),
+            (''五金居家'', 2),
+            (''美妝生活'', 3),
+            (''交通相關'', 4),
+            (''量販/超市'', 5),
+            (''通訊服務'', 6),
+            (''3C/家電'', 7),
+            (''便利商店'', 8)
      ),
      district_order(district, sort_order) AS (
         VALUES
@@ -221,23 +236,47 @@ VALUES
             (''烏來區'', 41)
      ),
      stores AS (
-        SELECT district, brand FROM public.green_store_tpe
+        SELECT
+            district,
+            CASE
+                WHEN name ~* ''^(7-?11|7－11|7-ELEVEN|統一超商|OPEN|全家|萊爾富|OK|來來超商)'' THEN ''便利商店''
+                WHEN name ~* ''(全國電子|燦坤|大同3C|大同綜合訊電|象印|台象|家電|電器)'' THEN ''3C/家電''
+                WHEN name ~* ''(中華電信|遠傳|台灣大哥大|臺灣大哥大|台灣之星|亞太電信|神腦)'' THEN ''通訊服務''
+                WHEN name ~* ''(全聯|家樂福|大潤發|愛買|頂好|Wellcome|棉花田|聖德科斯|超市|量販)'' THEN ''量販/超市''
+                WHEN name ~* ''(汽車|TOYOTA|Toyota|國都|固德|鴻源|和泰|加油站|機車|交通)'' THEN ''交通相關''
+                WHEN name ~* ''(寶雅|屈臣氏|康是美|小三美日|美華泰|美妝|生活百貨)'' THEN ''美妝生活''
+                WHEN name ~* ''(小北百貨|特力屋|HOLA|IKEA|宜家|五金|居家)'' THEN ''五金居家''
+                ELSE ''其他''
+            END AS category
+        FROM public.green_store_tpe
         UNION ALL
-        SELECT district, brand FROM public.green_store_new_tpe
+        SELECT
+            district,
+            CASE
+                WHEN name ~* ''^(7-?11|7－11|7-ELEVEN|統一超商|OPEN|全家|萊爾富|OK|來來超商)'' THEN ''便利商店''
+                WHEN name ~* ''(全國電子|燦坤|大同3C|大同綜合訊電|象印|台象|家電|電器)'' THEN ''3C/家電''
+                WHEN name ~* ''(中華電信|遠傳|台灣大哥大|臺灣大哥大|台灣之星|亞太電信|神腦)'' THEN ''通訊服務''
+                WHEN name ~* ''(全聯|家樂福|大潤發|愛買|頂好|Wellcome|棉花田|聖德科斯|超市|量販)'' THEN ''量販/超市''
+                WHEN name ~* ''(汽車|TOYOTA|Toyota|國都|固德|鴻源|和泰|加油站|機車|交通)'' THEN ''交通相關''
+                WHEN name ~* ''(寶雅|屈臣氏|康是美|小三美日|美華泰|美妝|生活百貨)'' THEN ''美妝生活''
+                WHEN name ~* ''(小北百貨|特力屋|HOLA|IKEA|宜家|五金|居家)'' THEN ''五金居家''
+                ELSE ''其他''
+            END AS category
+        FROM public.green_store_new_tpe
      ),
      counts AS (
-        SELECT district, brand, COUNT(*)::int AS store_count
+        SELECT district, category, COUNT(*)::int AS store_count
         FROM stores
-        GROUP BY district, brand
+        GROUP BY district, category
      )
      SELECT
         d.district AS x_axis,
-        b.brand AS y_axis,
-        COALESCE(c.store_count, 0)::int AS data
-     FROM brand_order b
+        co.category AS y_axis,
+        COALESCE(cnt.store_count, 0)::int AS data
+     FROM category_order co
      CROSS JOIN district_order d
-     LEFT JOIN counts c ON c.district = d.district AND c.brand = b.brand
-     ORDER BY b.sort_order, d.sort_order',
+     LEFT JOIN counts cnt ON cnt.district = d.district AND cnt.category = co.category
+     ORDER BY co.sort_order, d.sort_order',
     NULL,
     'metrotaipei'
 );

@@ -18,7 +18,7 @@ const emits = defineEmits([
 	"filterByLayer",
 	"clearByParamFilter",
 	"clearByLayerFilter",
-	"fly"
+	"fly",
 ]);
 
 const heatmapData = computed(() => {
@@ -46,7 +46,7 @@ const heatmapData = computed(() => {
 		});
 		sum = Object.values(output).reduce(
 			(partialSum, a) => partialSum + a,
-			0
+			0,
 		);
 	}
 
@@ -56,21 +56,18 @@ const heatmapData = computed(() => {
 });
 
 const colorScale = computed(() => {
-	const ranges = props.chart_config.color.map(
-		(el, index) => ({
-			to: Math.floor(
+	const ranges = props.chart_config.color.map((el, index) => ({
+		to: Math.floor(
+			(heatmapData.value.highest / props.chart_config.color.length) *
+				(props.chart_config.color.length - index),
+		),
+		from:
+			Math.floor(
 				(heatmapData.value.highest / props.chart_config.color.length) *
-					(props.chart_config.color.length - index)
-			),
-			from:
-				Math.floor(
-					(heatmapData.value.highest /
-						props.chart_config.color.length) *
-						(props.chart_config.color.length - index - 1)
-				) + 1,
-			color: el,
-		})
-	);
+					(props.chart_config.color.length - index - 1),
+			) + 1,
+		color: el,
+	}));
 	ranges.unshift({
 		to: 0,
 		from: 0,
@@ -79,7 +76,27 @@ const colorScale = computed(() => {
 	return ranges;
 });
 
-const chartOptions = ref({
+const isScrollableHeatmap = computed(() => {
+	const categoryCount = props.chart_config.categories?.length || 0;
+	return categoryCount >= 20;
+});
+
+const rowLabels = computed(() =>
+	props.series.map((item) => item.name).reverse(),
+);
+
+const chartWidth = computed(() => {
+	const categoryCount = props.chart_config.categories?.length || 0;
+	const cellWidth = 28;
+
+	if (!isScrollableHeatmap.value) {
+		return "100%";
+	}
+
+	return `${categoryCount * cellWidth}px`;
+});
+
+const chartOptions = computed(() => ({
 	chart: {
 		stacked: true,
 		toolbar: {
@@ -118,17 +135,12 @@ const chartOptions = ref({
 		colors: ["#282a2c"],
 	},
 	tooltip: {
-		custom: function ({
-			series,
-			seriesIndex,
-			dataPointIndex,
-			w,
-		}) {
+		custom: function ({ series, seriesIndex, dataPointIndex, w }) {
 			// The class "chart-tooltip" could be edited in /assets/styles/chartStyles.css
 			return (
 				'<div class="chart-tooltip">' +
 				"<h6>" +
-				`${w.globals.labels[dataPointIndex]}-${w.globals.seriesNames[seriesIndex]}` +
+				`${w.globals.labels[dataPointIndex]}-${props.series[seriesIndex].name}` +
 				"</h6>" +
 				"<span>" +
 				`${series[seriesIndex][dataPointIndex]}` +
@@ -160,6 +172,9 @@ const chartOptions = ref({
 		type: "category",
 	},
 	yaxis: {
+		labels: {
+			show: !isScrollableHeatmap.value,
+		},
 		max: function (max) {
 			if (!props.chart_config.categories) {
 				return max;
@@ -167,7 +182,7 @@ const chartOptions = ref({
 			return heatmapData.value.highest;
 		},
 	},
-});
+}));
 
 const selectedIndex = ref(null);
 
@@ -185,7 +200,7 @@ function handleDataSelection(_e, _chartContext, config) {
 				props.map_filter,
 				props.map_config,
 				config.w.globals.labels[config.dataPointIndex],
-				config.w.globals.seriesNames[config.seriesIndex]
+				props.series[config.seriesIndex].name,
 			);
 		}
 		// Supports filtering by xAxis
@@ -193,7 +208,7 @@ function handleDataSelection(_e, _chartContext, config) {
 			emits(
 				"filterByLayer",
 				props.map_config,
-				config.w.globals.labels[config.dataPointIndex]
+				config.w.globals.labels[config.dataPointIndex],
 			);
 		}
 		selectedIndex.value = `${config.dataPointIndex}-${config.seriesIndex}`;
@@ -209,27 +224,79 @@ function handleDataSelection(_e, _chartContext, config) {
 </script>
 
 <template>
-  <div
-    v-if="activeChart === 'HeatmapChart'"
-    class="heatmapchart"
-  >
-    <div class="heatmapchart-title">
-      <h5>總合</h5>
-      <h6>{{ heatmapData.sum }} {{ chart_config.unit }}</h6>
-    </div>
-    <VueApexCharts
-      width="100%"
-      height="360px"
-      type="heatmap"
-      :options="chartOptions"
-      :series="series"
-      @data-point-selection="handleDataSelection"
-    />
-  </div>
+	<div v-if="activeChart === 'HeatmapChart'" class="heatmapchart">
+		<div class="heatmapchart-title">
+			<h5>總合</h5>
+			<h6>{{ heatmapData.sum }} {{ chart_config.unit }}</h6>
+		</div>
+		<div class="heatmapchart-body">
+			<div v-if="isScrollableHeatmap" class="heatmapchart-row-labels">
+				<span v-for="label in rowLabels" :key="label" :title="label">
+					{{ label }}
+				</span>
+			</div>
+			<div class="heatmapchart-scroll">
+				<div class="heatmapchart-chart">
+					<VueApexCharts
+						:width="chartWidth"
+						height="360px"
+						type="heatmap"
+						:options="chartOptions"
+						:series="series"
+						@data-point-selection="handleDataSelection"
+					/>
+				</div>
+			</div>
+		</div>
+	</div>
 </template>
 
 <style scoped lang="scss">
 .heatmapchart {
+	&-body {
+		display: flex;
+		align-items: stretch;
+		gap: 12px;
+		width: 100%;
+	}
+
+	&-row-labels {
+		width: 128px;
+		flex: 0 0 70px;
+		display: grid;
+		grid-auto-rows: 34px;
+		margin-top: 26px;
+		margin-bottom: 58px;
+		color: var(--color-complement-text);
+		font-size: 14px;
+		font-weight: 600;
+		text-align: right;
+
+		span {
+			display: flex;
+			align-items: center;
+			justify-content: flex-start;
+			min-width: 0;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+	}
+
+	&-scroll {
+		flex: 1 1 auto;
+		min-width: 0;
+		width: 100%;
+		overflow-x: auto;
+		overflow-y: hidden;
+		padding-bottom: 4px;
+	}
+
+	&-chart {
+		width: max-content;
+		padding: 0 10px;
+	}
+
 	&-title {
 		display: flex;
 		justify-content: center;
