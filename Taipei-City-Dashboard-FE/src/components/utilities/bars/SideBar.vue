@@ -165,7 +165,15 @@ onMounted(() => {
         'sidebartab-active': route.path === '/explore',
       }"
     >
-      <span :title="!isExpanded ? '小狐探城' : ''" class="fox-icon">🦊</span>
+      <span
+        :title="!isExpanded ? '小狐探城' : ''"
+        class="fox-icon"
+      >
+        <img
+          src="../../../assets/images/arctic-fox.svg"
+          alt="小狐探城"
+        >
+      </span>
       <h3 v-if="isExpanded">
         小狐探城
       </h3>
@@ -352,11 +360,14 @@ onMounted(() => {
 			font-size: calc(var(--font-m) * var(--font-to-icon));
 
 			&.fox-icon {
-				font-family: inherit;
-				font-size: var(--font-l);
 				display: flex;
 				align-items: center;
 				justify-content: center;
+
+				img {
+					width: var(--font-l);
+					height: var(--font-l);
+				}
 			}
 		}
 

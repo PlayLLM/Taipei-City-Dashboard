@@ -21,10 +21,13 @@ const components = PIKMIN_COMPONENTS;
 
 let avatar = null;
 
-const STEP = 0.0001;
+const MOVE_SPEED_MULTIPLIER = 2;
+const MOVE_SPEED_PX_PER_SEC = 260 * MOVE_SPEED_MULTIPLIER;
 const PROXIMITY_THRESHOLD = 0.0008; // ~88 m
 const heldKeys = new Set();
-let moveTimer = null;
+let moveRaf = null;
+let lastMoveTs = 0;
+const DEFAULT_START_CENTER = [121.536609, 25.044808];
 
 // Only these three types are interactable challenge points
 const INTERACTION_TYPES = {
@@ -47,6 +50,8 @@ const nearbyInfo    = ref(null);   // { typeId, name, emoji, action, xp, color }
 const activeDialog  = ref(null);   // same shape
 const flashMessage  = ref(null);   // { text, type: 'error'|'success' }
 const locationData  = ref({ clothing: [], hotel: [], restaurant: [] });
+const locationPermissionModal = ref(false);
+const isRequestingLocation = ref(false);
 
 let flashTimer = null;
 const mapHandlers = []; // for cleanup
@@ -119,7 +124,7 @@ function showFlash(text, type = "error") {
 function handleMapIconClick(typeId, e) {
 	if (!avatar || !e.features?.length) return;
 	const [clickLng, clickLat] = e.features[0].geometry.coordinates;
-	const pos = avatar.marker.getLngLat();
+	const pos = avatar.getLngLat();
 	if (lngLatDist(pos.lng, pos.lat, clickLng, clickLat) > PROXIMITY_THRESHOLD) {
 		showFlash("距離太遠，請靠近後再互動！");
 		return;
@@ -150,36 +155,159 @@ function toggle(id) {
 
 function recenter() {
 	if (!mapStore.map || !avatar) return;
-	const pos = avatar.marker.getLngLat();
+	const pos = avatar.getLngLat();
 	mapStore.map.easeTo({
 		center: [pos.lng, pos.lat],
-		zoom: 16,
+		zoom: 18.2,
 		pitch: 60,
 		bearing: 0,
 		duration: 800,
 	});
 }
 
+function getCurrentPosition() {
+	if (!navigator.geolocation) {
+		const error = new Error("Geolocation is not supported by this browser.");
+		error.code = "unsupported";
+		return Promise.reject(error);
+	}
+
+	return new Promise((resolve, reject) => {
+		navigator.geolocation.getCurrentPosition(resolve, reject, {
+			enableHighAccuracy: true,
+			maximumAge: 0,
+			timeout: 10000,
+		});
+	});
+}
+
+function normalizeCenter(position) {
+	return [position.coords.longitude, position.coords.latitude];
+}
+
+function storeUserLocation([lng, lat]) {
+	mapStore.userLocation = {
+		latitude: lat,
+		longitude: lng,
+	};
+}
+
+function handleLocationError(error, { showPermissionPrompt = true, withFallback = true } = {}) {
+	if (error?.code === 1) {
+		if (showPermissionPrompt) {
+			locationPermissionModal.value = true;
+		}
+		showFlash("需要定位權限才能以目前位置開始遊戲。");
+		return;
+	}
+
+	if (error?.code === "unsupported") {
+		showFlash("裝置不支援定位功能，已改用預設位置。");
+		return;
+	}
+
+	if (showPermissionPrompt) {
+		locationPermissionModal.value = true;
+	}
+
+	if (withFallback) {
+		showFlash("目前無法取得定位，已改用預設位置。");
+	} else {
+		showFlash("目前無法取得定位，請稍後再試。");
+	}
+}
+
+async function tryGetUserCenter(showPermissionPrompt = true) {
+	isRequestingLocation.value = true;
+	try {
+		const position = await getCurrentPosition();
+		const center = normalizeCenter(position);
+		storeUserLocation(center);
+		locationPermissionModal.value = false;
+		return center;
+	} catch (error) {
+		handleLocationError(error, {
+			showPermissionPrompt,
+			withFallback: false,
+		});
+		return null;
+	} finally {
+		isRequestingLocation.value = false;
+	}
+}
+
+async function getInitialCenter() {
+	isRequestingLocation.value = true;
+	try {
+		const position = await getCurrentPosition();
+		const center = normalizeCenter(position);
+		storeUserLocation(center);
+		locationPermissionModal.value = false;
+		return center;
+	} catch (error) {
+		handleLocationError(error, {
+			showPermissionPrompt: true,
+			withFallback: true,
+		});
+		return [...DEFAULT_START_CENTER];
+	} finally {
+		isRequestingLocation.value = false;
+	}
+}
+
+async function requestUserLocation() {
+	const center = await tryGetUserCenter(true);
+	if (!center || !mapStore.map || !avatar) return;
+	mapStore.map.easeTo({
+		center,
+		zoom: 18.2,
+		pitch: 60,
+		bearing: 0,
+		duration: 800,
+	});
+	avatar.setLngLat(center);
+	checkProximity(center);
+}
+
 // ─── Avatar Movement ─────────────────────────────────────────────────────────
 
-function moveAvatar() {
-	if (!avatar) return;
-	const pos = avatar.marker.getLngLat();
-	let { lng, lat } = pos;
-	let moved = false;
+function moveAvatarFrame(ts) {
+	if (!avatar || !mapStore.map) return;
+	if (!lastMoveTs) lastMoveTs = ts;
+	const deltaSec = Math.min((ts - lastMoveTs) / 1000, 0.05);
+	lastMoveTs = ts;
 
-	if (heldKeys.has("ArrowUp"))    { lat += STEP; moved = true; }
-	if (heldKeys.has("ArrowDown"))  { lat -= STEP; moved = true; }
-	if (heldKeys.has("ArrowLeft"))  { lng -= STEP; avatar.face("left");  moved = true; }
-	if (heldKeys.has("ArrowRight")) { lng += STEP; avatar.face("right"); moved = true; }
+	const horizontal = (heldKeys.has("ArrowRight") ? 1 : 0) - (heldKeys.has("ArrowLeft") ? 1 : 0);
+	const vertical = (heldKeys.has("ArrowUp") ? 1 : 0) - (heldKeys.has("ArrowDown") ? 1 : 0);
+	const hasInput = horizontal !== 0 || vertical !== 0;
+	let stepX = 0;
+	let stepY = 0;
+	if (hasInput) {
+		const vecLen = Math.hypot(horizontal, vertical);
+		const dirX = horizontal / vecLen;
+		const dirY = -(vertical / vecLen);
+		const distancePx = MOVE_SPEED_PX_PER_SEC * deltaSec;
+		stepX = dirX * distancePx;
+		stepY = dirY * distancePx;
 
-	avatar.setMoving(moved);
-
-	if (moved) {
-		avatar.setLngLat([lng, lat]);
-		mapStore.map.easeTo({ center: [lng, lat], duration: 80, easing: (t) => t });
-		checkProximity([lng, lat]);
+		if (horizontal < 0) avatar.face("left");
+		if (horizontal > 0) avatar.face("right");
 	}
+
+	avatar.setMoving(hasInput);
+	let avatarLngLat = avatar.getLngLat();
+
+	if (hasInput) {
+		const screenPos = mapStore.map.project([avatarLngLat.lng, avatarLngLat.lat]);
+		const nextScreen = [screenPos.x + stepX, screenPos.y + stepY];
+		const nextLngLat = mapStore.map.unproject(nextScreen);
+		avatar.setLngLat([nextLngLat.lng, nextLngLat.lat]);
+		avatarLngLat = nextLngLat;
+	}
+	mapStore.map.setCenter([avatarLngLat.lng, avatarLngLat.lat]);
+	checkProximity([avatarLngLat.lng, avatarLngLat.lat]);
+
+	moveRaf = requestAnimationFrame(moveAvatarFrame);
 }
 
 function onKeyDown(e) {
@@ -194,9 +322,10 @@ function onKeyUp(e) {
 
 // ─── Lifecycle ───────────────────────────────────────────────────────────────
 
-onMounted(() => {
+onMounted(async () => {
+	const initialCenter = await getInitialCenter();
+
 	mapStore.initializeMapBox("mapbox://styles/mapbox/streets-v12");
-	mapStore.setCurrentLocation();
 	loadLocationData();
 
 	const { map } = mapStore;
@@ -205,11 +334,11 @@ onMounted(() => {
 		applyGameEnvironment(map);
 		hideMinorRoadLabels(map);
 		hideMapboxPOIs(map);
-		map.easeTo({ center: [121.536609, 25.044808], zoom: 16, pitch: 60, duration: 0 });
-		setupPikminLayers(map);
+		map.easeTo({ center: initialCenter, zoom: 18.2, pitch: 60, duration: 0 });
 
-		avatar = new AvatarMarker(map, [121.536609, 25.044808]);
+		avatar = new AvatarMarker(map, initialCenter);
 		avatar.start(); // no-op; animation controlled by setMoving()
+		setupPikminLayers(map);
 
 		// Register click handlers for the three interactable location types
 		for (const typeId of Object.keys(INTERACTION_TYPES)) {
@@ -227,7 +356,7 @@ onMounted(() => {
 			);
 		}
 
-		moveTimer = setInterval(moveAvatar, 33);
+		moveRaf = requestAnimationFrame(moveAvatarFrame);
 	};
 
 	if (map.loaded()) onLoad();
@@ -240,7 +369,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
 	window.removeEventListener("keydown", onKeyDown);
 	window.removeEventListener("keyup", onKeyUp);
-	if (moveTimer)  { clearInterval(moveTimer);  moveTimer  = null; }
+	if (moveRaf)    { cancelAnimationFrame(moveRaf); moveRaf = null; }
+	lastMoveTs = 0;
 	if (flashTimer) { clearTimeout(flashTimer);  flashTimer = null; }
 	if (avatar)     { avatar.destroy();          avatar     = null; }
 	if (mapStore.map) {
@@ -260,57 +390,75 @@ onBeforeUnmount(() => {
       class="pikmin-map"
     />
 
-    <!-- Top HUD -->
     <div class="pikmin-hud-top">
-      <div class="pikmin-title">
-        <span class="pikmin-title-emoji">🌱</span>
-        <span>循環經濟探險</span>
+      <div class="pikmin-top-main">
+        <div class="pikmin-title">
+          <span class="pikmin-title-emoji">🌱</span>
+          <span>循環經濟探險</span>
+        </div>
+        <div class="pikmin-actions">
+          <button
+            class="pikmin-btn"
+            :disabled="isRequestingLocation"
+            @click="requestUserLocation"
+          >
+            {{ isRequestingLocation ? "定位中..." : "定位到我" }}
+          </button>
+          <button
+            class="pikmin-btn"
+            @click="recenter"
+          >
+            回到角色
+          </button>
+        </div>
       </div>
-      <button
-        class="pikmin-btn"
-        @click="recenter"
-      >
-        回到角色
-      </button>
+
     </div>
 
-    <!-- Side layer panel -->
-    <div class="pikmin-hud-side">
-      <div class="pikmin-hud-label">
-        圖層
+    <div class="pikmin-bottom-panels">
+      <div class="pikmin-layer-panel">
+        <div class="pikmin-hud-label">
+          圖層
+        </div>
+        <div class="pikmin-layer-list">
+          <button
+            v-for="c in components"
+            :key="c.id"
+            class="pikmin-layer-btn"
+            :class="{ active: visible[c.id] }"
+            :style="{ '--c': c.color }"
+            :title="c.name"
+            @click="toggle(c.id)"
+          >
+            <span class="dot">{{ c.label }}</span>
+            <span class="name">{{ c.name }}</span>
+            <span
+              v-if="INTERACTION_TYPES[c.id]"
+              class="challenge-badge"
+            >★</span>
+          </button>
+        </div>
       </div>
-      <button
-        v-for="c in components"
-        :key="c.id"
-        class="pikmin-layer-btn"
-        :class="{ active: visible[c.id] }"
-        :style="{ '--c': c.color }"
-        :title="c.name"
-        @click="toggle(c.id)"
-      >
-        <span class="dot">{{ c.label }}</span>
-        <span class="name">{{ c.name }}</span>
-        <span
-          v-if="INTERACTION_TYPES[c.id]"
-          class="challenge-badge"
-        >★</span>
-      </button>
-    </div>
 
-    <!-- XP bar (bottom-left) -->
-    <div class="xp-bar">
-      <div class="xp-level">
-        Lv.{{ xpLevel.level }}
-        <span class="xp-title">{{ xpLevel.title }}</span>
-      </div>
-      <div class="xp-track">
-        <div
-          class="xp-fill"
-          :style="{ width: xpProgress + '%' }"
-        />
-      </div>
-      <div class="xp-text">
-        {{ xp }} XP<template v-if="xpLevel.max"> / {{ xpLevel.max }}</template>
+      <div class="xp-bar">
+        <div class="pikmin-hud-label">
+          Level
+        </div>
+        <div class="xp-level">
+          Lv.{{ xpLevel.level }}
+          <span class="xp-title">{{ xpLevel.title }}</span>
+        </div>
+        <div class="xp-track">
+          <div
+            class="xp-fill"
+            :style="{ width: xpProgress + '%' }"
+          />
+        </div>
+        <div class="xp-text">
+          {{ xp }} XP<template v-if="xpLevel.max">
+            / {{ xpLevel.max }}
+          </template>
+        </div>
       </div>
     </div>
 
@@ -375,6 +523,38 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </transition>
+
+    <transition name="dialog-fade">
+      <div
+        v-if="locationPermissionModal && !activeDialog"
+        class="dialog-overlay"
+      >
+        <div class="dialog-box location-dialog">
+          <div class="dialog-header">
+            <span class="dialog-emoji">📍</span>
+            <span class="dialog-name">需要定位權限</span>
+          </div>
+          <div class="dialog-action">
+            請允許定位權限，讓小狐狸從你的目前位置開始探險。
+          </div>
+          <div class="dialog-btns">
+            <button
+              class="dialog-btn confirm"
+              :disabled="isRequestingLocation"
+              @click="requestUserLocation"
+            >
+              {{ isRequestingLocation ? "定位中..." : "重新要求權限" }}
+            </button>
+            <button
+              class="dialog-btn cancel"
+              @click="locationPermissionModal = false"
+            >
+              稍後再說
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -384,7 +564,7 @@ onBeforeUnmount(() => {
 	width: 100%;
 	height: 100%;
 	overflow: hidden;
-	background: #f0f0f0;
+	background: #090909;
 }
 
 .pikmin-map {
@@ -397,81 +577,97 @@ onBeforeUnmount(() => {
 	}
 }
 
-// ─── Top HUD ─────────────────────────────────────────────────────────────────
-
 .pikmin-hud-top {
 	position: absolute;
-	top: 14px;
-	left: 14px;
-	display: flex;
-	gap: 12px;
-	align-items: center;
+	top: 16px;
+	left: 16px;
+	right: 16px;
 	z-index: 5;
-	pointer-events: none;
+}
 
-	.pikmin-title,
-	.pikmin-btn {
-		pointer-events: auto;
-	}
+.pikmin-top-main {
+	display: flex;
+	justify-content: space-between;
+	gap: 10px;
+	align-items: stretch;
+}
+
+.pikmin-bottom-panels {
+	position: absolute;
+	left: 16px;
+	right: 16px;
+	bottom: calc(75px + env(safe-area-inset-bottom));
+	display: flex;
+	gap: 10px;
+	align-items: stretch;
+	z-index: 5;
 }
 
 .pikmin-title {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 8px 14px;
-	background: rgba(28, 30, 32, 0.88);
+	padding: 10px 14px;
+	background: rgba(40, 42, 44, 0.96);
 	color: #fff;
-	border-radius: 999px;
+	border: 1px solid #494b4e;
 	font-weight: 600;
 	letter-spacing: 1px;
-	backdrop-filter: blur(8px);
-	border: 1px solid rgba(73, 75, 78, 0.7);
 
 	&-emoji {
 		font-size: 1.1rem;
 	}
 }
 
+.pikmin-actions {
+	display: flex;
+	gap: 8px;
+}
+
 .pikmin-btn {
-	padding: 8px 14px;
-	border-radius: 999px;
-	border: 1px solid rgba(73, 75, 78, 0.7);
-	background: rgba(28, 30, 32, 0.88);
+	padding: 10px 14px;
+	border: 1px solid #494b4e;
+	background: rgba(40, 42, 44, 0.96);
 	color: #fff;
 	cursor: pointer;
-	transition: background 0.15s, border-color 0.15s;
-	backdrop-filter: blur(8px);
+	font-size: 0.85rem;
+	transition: background 0.15s, border-color 0.15s, color 0.15s;
 
 	&:hover {
-		background: rgba(90, 156, 248, 0.25);
+		background: rgba(90, 156, 248, 0.15);
 		border-color: #5a9cf8;
+	}
+
+	&:disabled {
+		color: #888787;
+		cursor: not-allowed;
+		border-color: #353739;
 	}
 }
 
-// ─── Side Layer Panel ────────────────────────────────────────────────────────
+.pikmin-hud-label {
+	color: #888787;
+	font-size: 0.72rem;
+	letter-spacing: 1.5px;
+	margin-bottom: 6px;
+	text-transform: uppercase;
+}
 
-.pikmin-hud-side {
-	position: absolute;
-	right: 14px;
-	top: 90px;
+.pikmin-layer-panel,
+.xp-bar {
+	background: rgba(40, 42, 44, 0.96);
+	border: 1px solid #494b4e;
+	padding: 10px;
+}
+
+.pikmin-layer-panel {
+	flex: 1 1 auto;
+}
+
+.pikmin-layer-list {
 	display: flex;
-	flex-direction: column;
+	flex-wrap: wrap;
 	gap: 8px;
-	z-index: 5;
-	padding: 12px 10px;
-	background: rgba(28, 30, 32, 0.9);
-	border-radius: 14px;
-	backdrop-filter: blur(10px);
-	border: 1px solid rgba(73, 75, 78, 0.6);
-
-	.pikmin-hud-label {
-		color: #888787;
-		font-size: 0.72rem;
-		letter-spacing: 2px;
-		text-align: center;
-		margin-bottom: 4px;
-	}
 }
 
 .pikmin-layer-btn {
@@ -479,18 +675,16 @@ onBeforeUnmount(() => {
 	align-items: center;
 	gap: 8px;
 	padding: 6px 10px 6px 6px;
-	border-radius: 999px;
-	border: 1px solid rgba(73, 75, 78, 0.5);
-	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid #494b4e;
+	background: rgba(9, 9, 9, 0.4);
 	color: #888787;
 	cursor: pointer;
 	transition: all 0.15s;
 	font-size: 0.85rem;
 
 	.dot {
-		width: 24px;
-		height: 24px;
-		border-radius: 50%;
+		width: 22px;
+		height: 22px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -511,7 +705,7 @@ onBeforeUnmount(() => {
 
 	&.active {
 		color: #fff;
-		background: rgba(255, 255, 255, 0.1);
+		background: rgba(90, 156, 248, 0.16);
 		border-color: var(--c);
 
 		.dot {
@@ -529,19 +723,8 @@ onBeforeUnmount(() => {
 	}
 }
 
-// ─── XP Bar ──────────────────────────────────────────────────────────────────
-
 .xp-bar {
-	position: absolute;
-	bottom: 20px;
-	left: 14px;
-	z-index: 5;
-	min-width: 200px;
-	padding: 10px 14px;
-	background: rgba(28, 30, 32, 0.92);
-	border: 1px solid rgba(73, 75, 78, 0.6);
-	border-radius: 12px;
-	backdrop-filter: blur(10px);
+	flex: 0 0 260px;
 }
 
 .xp-level {
@@ -563,40 +746,34 @@ onBeforeUnmount(() => {
 .xp-track {
 	height: 7px;
 	background: rgba(255, 255, 255, 0.12);
-	border-radius: 999px;
 	overflow: hidden;
 	margin-bottom: 5px;
 }
 
 .xp-fill {
 	height: 100%;
-	background: linear-gradient(90deg, #5a9cf8, #a78bfa);
-	border-radius: 999px;
+	background: #5a9cf8;
 	transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.xp-text {
+.xp-text,
+.nearby-tip {
 	color: #888787;
-	font-size: 0.7rem;
-	text-align: right;
+	font-size: 0.74rem;
 }
-
-// ─── Nearby Hint ─────────────────────────────────────────────────────────────
 
 .nearby-hint {
 	position: absolute;
-	bottom: 20px;
+	bottom: calc(130px + env(safe-area-inset-bottom));
 	left: 50%;
 	transform: translateX(-50%);
 	z-index: 5;
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 9px 18px;
-	background: rgba(28, 30, 32, 0.92);
-	border: 1px solid rgba(90, 156, 248, 0.55);
-	border-radius: 999px;
-	backdrop-filter: blur(10px);
+	padding: 10px 14px;
+	background: rgba(40, 42, 44, 0.96);
+	border: 1px solid rgba(90, 156, 248, 0.75);
 	color: #fff;
 	font-size: 0.88rem;
 	pointer-events: none;
@@ -607,40 +784,30 @@ onBeforeUnmount(() => {
 	font-size: 1.15rem;
 }
 
-.nearby-tip {
-	color: #5a9cf8;
-	font-size: 0.76rem;
-}
-
-// ─── Flash Message ───────────────────────────────────────────────────────────
-
 .flash-msg {
 	position: absolute;
 	top: 62px;
 	left: 50%;
 	transform: translateX(-50%);
 	z-index: 10;
-	padding: 8px 22px;
-	border-radius: 999px;
+	padding: 8px 16px;
 	font-size: 0.9rem;
 	font-weight: 600;
 	pointer-events: none;
 	white-space: nowrap;
 
 	&.error {
-		background: rgba(200, 50, 50, 0.92);
+		background: rgba(150, 34, 34, 0.92);
 		color: #fff;
-		border: 1px solid rgba(255, 100, 100, 0.4);
+		border: 1px solid rgba(221, 95, 95, 0.6);
 	}
 
 	&.success {
-		background: rgba(46, 139, 87, 0.92);
+		background: rgba(46, 108, 79, 0.92);
 		color: #fff;
-		border: 1px solid rgba(100, 210, 140, 0.4);
+		border: 1px solid rgba(100, 210, 140, 0.5);
 	}
 }
-
-// ─── Interaction Dialog ──────────────────────────────────────────────────────
 
 .dialog-overlay {
 	position: absolute;
@@ -649,19 +816,20 @@ onBeforeUnmount(() => {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: rgba(0, 0, 0, 0.42);
-	backdrop-filter: blur(3px);
+	background: rgba(0, 0, 0, 0.56);
 }
 
 .dialog-box {
-	background: rgba(18, 20, 24, 0.97);
-	border: 2px solid var(--dialog-color, #5a9cf8);
-	border-radius: 20px;
-	padding: 28px 34px;
-	min-width: 280px;
-	max-width: 360px;
+	background: rgba(40, 42, 44, 0.98);
+	border: 1px solid var(--dialog-color, #5a9cf8);
+	padding: 24px;
+	min-width: 320px;
+	max-width: 380px;
 	text-align: center;
-	box-shadow: 0 12px 48px rgba(0, 0, 0, 0.65);
+}
+
+.location-dialog {
+	border-color: #5a9cf8;
 }
 
 .dialog-header {
@@ -685,7 +853,7 @@ onBeforeUnmount(() => {
 .dialog-action {
 	font-size: 1.05rem;
 	color: #fff;
-	margin-bottom: 8px;
+	margin-bottom: 10px;
 }
 
 .dialog-xp {
@@ -701,36 +869,77 @@ onBeforeUnmount(() => {
 }
 
 .dialog-btn {
-	padding: 10px 24px;
-	border-radius: 999px;
-	border: none;
+	padding: 9px 18px;
+	border: 1px solid transparent;
 	cursor: pointer;
 	font-size: 0.9rem;
 	font-weight: 600;
-	transition: all 0.15s;
+	transition: background 0.15s, border-color 0.15s, color 0.15s;
 
 	&.confirm {
 		background: var(--dialog-color, #5a9cf8);
 		color: #fff;
+		border-color: var(--dialog-color, #5a9cf8);
 
 		&:hover {
-			filter: brightness(1.2);
+			background: #4c8de8;
 		}
 	}
 
 	&.cancel {
-		background: rgba(255, 255, 255, 0.08);
+		background: rgba(9, 9, 9, 0.3);
 		color: #888787;
-		border: 1px solid rgba(73, 75, 78, 0.5);
+		border-color: #494b4e;
 
 		&:hover {
-			background: rgba(255, 255, 255, 0.15);
+			background: rgba(255, 255, 255, 0.1);
 			color: #fff;
 		}
 	}
+
+	&:disabled {
+		opacity: 0.7;
+		cursor: not-allowed;
+	}
 }
 
-// ─── Transitions ─────────────────────────────────────────────────────────────
+@media (max-width: 1000px) {
+	.pikmin-hud-top {
+		left: 10px;
+		right: 10px;
+		top: 10px;
+	}
+
+	.pikmin-top-main,
+	.pikmin-bottom-panels {
+		flex-direction: column;
+	}
+
+	.pikmin-bottom-panels {
+		left: 10px;
+		right: 10px;
+		bottom: calc(44px + env(safe-area-inset-bottom));
+	}
+
+	.pikmin-actions {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.xp-bar {
+		flex-basis: auto;
+	}
+
+	.dialog-box {
+		min-width: 0;
+		width: calc(100vw - 24px);
+		max-width: 420px;
+	}
+
+	.nearby-hint {
+		bottom: calc(220px + env(safe-area-inset-bottom));
+	}
+}
 
 .fade-enter-active,
 .fade-leave-active {
@@ -747,7 +956,7 @@ onBeforeUnmount(() => {
 	transition: opacity 0.2s;
 
 	.dialog-box {
-		transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+		transition: transform 0.2s ease;
 	}
 }
 

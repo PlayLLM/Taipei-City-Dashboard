@@ -226,108 +226,114 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-	<div
-		class="app-container"
-		:class="{
-			'app-container--chat-sidebar':
-				chatDisplayMode === 'sidebar' && isChatBoxShow,
-		}"
-	>
-		<NotificationBar />
-		<NavBar 
-			v-if="authStore.currentPath !== 'embed'" 
-			:class="{ 'navbar-hidden': authStore.currentPath === 'explore' }"
-		/>
-		<!-- /mapview, /dashboard layouts -->
-		<div
-			v-if="
-				authStore.currentPath === 'mapview' ||
-				authStore.currentPath === 'dashboard'
-			"
-			class="app-content navbar-offset"
-		>
-			<SideBar />
-			<div class="app-content-main">
-				<SettingsBar />
-				<RouterView />
-			</div>
-		</div>
-		<!-- /explore layout — sidebar only, no settings bar -->
-		<div
-			v-else-if="authStore.currentPath === 'explore'"
-			class="app-content full-height"
-		>
-			<SideBar />
-			<div class="app-content-main">
-				<RouterView />
-			</div>
-		</div>
-		<!-- /admin layouts -->
-		<div v-else-if="authStore.currentPath === 'admin'" class="app-content">
-			<AdminSideBar />
-			<div class="app-content-main">
-				<RouterView />
-			</div>
-		</div>
-		<!-- /component, /component/:index layouts -->
-		<div
-			v-else-if="authStore.currentPath.includes('component')"
-			class="app-content"
-		>
-			<ComponentSideBar />
-			<div class="app-content-main">
-				<RouterView />
-			</div>
-		</div>
-		<div v-else>
-			<router-view />
-		</div>
-		<InitialWarning />
-		<LogIn />
-		<div
-			v-if="
-				['dashboard', 'mapview'].includes(authStore.currentPath) &&
-				!authStore.isMobile &&
-				!authStore.isNarrowDevice
-			"
-			class="app-update"
-		>
-			<p>下次更新：{{ formattedTimeToUpdate }}</p>
-		</div>
-		<div
-			v-if="authStore.currentPath !== 'explore'"
-			class="chatbot-container"
-			:class="{
-				'chatbot-container--sidebar': chatDisplayMode === 'sidebar',
-				'chatbot-container--floating': chatDisplayMode === 'floating',
-			}"
-		>
-			<ChatBox
-				v-if="isChatBoxShow"
-				class="chatbox"
-				:display-mode="chatDisplayMode"
-				@toggle-display-mode="toggleChatDisplayMode"
-			/>
-			<div
-				v-if="isChatBtnShow && chatDisplayMode === 'floating'"
-				class="chatbot-btn-area"
-			>
-				<div class="hide-chat-btn">
-					<button @click="hideBtnClickHandler" />
-				</div>
-				<button
-					v-if="isChatBoxShow"
-					class="chatbot-mode-btn"
-					@click="toggleChatDisplayMode"
-				>
-					{{ chatDisplayMode === "floating" ? "側邊欄" : "浮動視窗" }}
-				</button>
-				<button class="chatbot-btn" @click="chatbotBtnHandler">
-					<ChatBotIcon />
-				</button>
-			</div>
-		</div>
-	</div>
+  <div
+    class="app-container"
+    :class="{
+      'app-container--chat-sidebar':
+        chatDisplayMode === 'sidebar' && isChatBoxShow,
+    }"
+  >
+    <NotificationBar />
+    <NavBar 
+      v-if="authStore.currentPath !== 'embed'" 
+      :class="{ 'navbar-hidden': authStore.currentPath === 'explore' }"
+    />
+    <!-- /mapview, /dashboard layouts -->
+    <div
+      v-if="
+        authStore.currentPath === 'mapview' ||
+          authStore.currentPath === 'dashboard'
+      "
+      class="app-content navbar-offset"
+    >
+      <SideBar />
+      <div class="app-content-main">
+        <SettingsBar />
+        <RouterView />
+      </div>
+    </div>
+    <!-- /explore layout — sidebar only, no settings bar -->
+    <div
+      v-else-if="authStore.currentPath === 'explore'"
+      class="app-content full-height"
+    >
+      <SideBar />
+      <div class="app-content-main">
+        <RouterView />
+      </div>
+    </div>
+    <!-- /admin layouts -->
+    <div
+      v-else-if="authStore.currentPath === 'admin'"
+      class="app-content"
+    >
+      <AdminSideBar />
+      <div class="app-content-main">
+        <RouterView />
+      </div>
+    </div>
+    <!-- /component, /component/:index layouts -->
+    <div
+      v-else-if="authStore.currentPath.includes('component')"
+      class="app-content"
+    >
+      <ComponentSideBar />
+      <div class="app-content-main">
+        <RouterView />
+      </div>
+    </div>
+    <div v-else>
+      <router-view />
+    </div>
+    <InitialWarning />
+    <LogIn />
+    <div
+      v-if="
+        ['dashboard', 'mapview'].includes(authStore.currentPath) &&
+          !authStore.isMobile &&
+          !authStore.isNarrowDevice
+      "
+      class="app-update"
+    >
+      <p>下次更新：{{ formattedTimeToUpdate }}</p>
+    </div>
+    <div
+      v-if="authStore.currentPath !== 'explore'"
+      class="chatbot-container"
+      :class="{
+        'chatbot-container--sidebar': chatDisplayMode === 'sidebar',
+        'chatbot-container--floating': chatDisplayMode === 'floating',
+      }"
+    >
+      <ChatBox
+        v-if="isChatBoxShow"
+        class="chatbox"
+        :display-mode="chatDisplayMode"
+        @toggle-display-mode="toggleChatDisplayMode"
+      />
+      <div
+        v-if="isChatBtnShow && chatDisplayMode === 'floating'"
+        class="chatbot-btn-area"
+      >
+        <div class="hide-chat-btn">
+          <button @click="hideBtnClickHandler" />
+        </div>
+        <button
+          v-if="isChatBoxShow"
+          class="chatbot-mode-btn"
+          @click="toggleChatDisplayMode"
+        >
+          {{ chatDisplayMode === "floating" ? "側邊欄" : "浮動視窗" }}
+        </button>
+        <button
+          class="chatbot-btn"
+          @click="chatbotBtnHandler"
+        >
+          <ChatBotIcon />
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped lang="scss">

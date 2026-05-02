@@ -224,31 +224,41 @@ function handleDataSelection(_e, _chartContext, config) {
 </script>
 
 <template>
-	<div v-if="activeChart === 'HeatmapChart'" class="heatmapchart">
-		<div class="heatmapchart-title">
-			<h5>總合</h5>
-			<h6>{{ heatmapData.sum }} {{ chart_config.unit }}</h6>
-		</div>
-		<div class="heatmapchart-body">
-			<div v-if="isScrollableHeatmap" class="heatmapchart-row-labels">
-				<span v-for="label in rowLabels" :key="label" :title="label">
-					{{ label }}
-				</span>
-			</div>
-			<div class="heatmapchart-scroll">
-				<div class="heatmapchart-chart">
-					<VueApexCharts
-						:width="chartWidth"
-						height="360px"
-						type="heatmap"
-						:options="chartOptions"
-						:series="series"
-						@data-point-selection="handleDataSelection"
-					/>
-				</div>
-			</div>
-		</div>
-	</div>
+  <div
+    v-if="activeChart === 'HeatmapChart'"
+    class="heatmapchart"
+  >
+    <div class="heatmapchart-title">
+      <h5>總合</h5>
+      <h6>{{ heatmapData.sum }} {{ chart_config.unit }}</h6>
+    </div>
+    <div class="heatmapchart-body">
+      <div
+        v-if="isScrollableHeatmap"
+        class="heatmapchart-row-labels"
+      >
+        <span
+          v-for="label in rowLabels"
+          :key="label"
+          :title="label"
+        >
+          {{ label }}
+        </span>
+      </div>
+      <div class="heatmapchart-scroll">
+        <div class="heatmapchart-chart">
+          <VueApexCharts
+            :width="chartWidth"
+            height="360px"
+            type="heatmap"
+            :options="chartOptions"
+            :series="series"
+            @data-point-selection="handleDataSelection"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped lang="scss">

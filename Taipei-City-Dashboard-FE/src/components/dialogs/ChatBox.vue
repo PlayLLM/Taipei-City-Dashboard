@@ -118,149 +118,177 @@ watch(
 </script>
 
 <template>
-	<div class="chat-widget">
-		<!-- 標題 -->
-		<div class="header">
-			<h3>臺北城市儀表板小幫手</h3>
-			<div class="header-actions">
-				<button
-					class="header-action-btn"
-					:disabled="isAILoading"
-					@click="clearChatHistoryHandler"
-				>
-					清除記錄
-				</button>
-				<button
-					class="header-action-btn"
-					@click="emit('toggle-display-mode')"
-				>
-					{{ displayMode === "floating" ? "側邊欄" : "浮動視窗" }}
-				</button>
-			</div>
-		</div>
+  <div class="chat-widget">
+    <!-- 標題 -->
+    <div class="header">
+      <h3>臺北城市儀表板小幫手</h3>
+      <div class="header-actions">
+        <button
+          class="header-action-btn"
+          :disabled="isAILoading"
+          @click="clearChatHistoryHandler"
+        >
+          清除記錄
+        </button>
+        <button
+          class="header-action-btn"
+          @click="emit('toggle-display-mode')"
+        >
+          {{ displayMode === "floating" ? "側邊欄" : "浮動視窗" }}
+        </button>
+      </div>
+    </div>
 
-		<!-- 聊天區 -->
-		<div ref="chatAreaRef" class="chat-area scrollbar-custom">
-			<!-- 置頂訊息 -->
-			<div class="chat-message sticky-message">
-				<div class="sticky-header" @click="toggleSticky">
-					<span>置頂公告：小幫手使用須知</span>
-					<button class="toggle-btn">
-						{{ isStickyOpen ? "-" : "+" }}
-					</button>
-				</div>
-				<div v-show="isStickyOpen" class="sticky-body">
-					<span
-						>小幫手會依據您輸入的內容，自動檢索本站臺的組件資料庫，並回傳相似度較高的組件清單，協助您快速找到符合需求的元件或資訊。<br /><br />
-						目前小幫手僅提供組件比對與分析服務，不支援一般聊天功能。如造成不便，敬請見諒！</span
-					>
-				</div>
-			</div>
-			<div v-for="chat in chatData" :key="chat.id" class="message">
-				<!-- 機器人訊息 -->
-				<div v-if="chat.role === 'bot'" class="bot">
-					<div class="avatar">
-						<BotLogo />
-					</div>
-					<div class="content">
-						<div v-if="chat.content" class="message--bubble">
-							<p>{{ chat.content }}</p>
-						</div>
-						<div
-							v-if="chat.button"
-							v-horizontal-wheel
-							class="message--button scrollbar-x-hide"
-						>
-							<button
-								v-for="btn in chat.button"
-								:key="btn.id"
-								:class="{
-									'button--dashboard-link':
-										btn.variant === 'dashboard-link',
-								}"
-								:title="
-									btn.variant === 'dashboard-link'
-										? '前往並標示對應儀表板組件'
-										: ''
-								"
-								@click="
-									qaBtnHandler(
-										btn.text,
-										btn.target || chat.relations,
-									)
-								"
-							>
-								{{ btn.text }}
-							</button>
-						</div>
-						<!-- 工具調用資訊 -->
-						<div
-							v-if="
-								chat.toolUsed &&
-								chat.tools &&
-								chat.tools.length > 0
-							"
-							class="tool-info"
-						>
-							<div class="tool-label">使用工具：</div>
-							<div
-								v-for="(tool, index) in chat.tools"
-								:key="index"
-								class="tool-item"
-							>
-								{{ tool }}
-							</div>
-						</div>
-					</div>
-				</div>
-				<!-- 使用者訊息 -->
-				<div v-else class="user">
-					<div class="avatar">
-						<UserLogo />
-					</div>
-					<div v-if="chat.content" class="content">
-						<div class="message--bubble">
-							<p>{{ chat.content }}</p>
-						</div>
-					</div>
-				</div>
-			</div>
-			<!-- AI 載入中訊息 -->
-			<div v-if="isAILoading" class="message">
-				<div class="bot">
-					<div class="avatar">
-						<BotLogo />
-					</div>
-					<div class="content">
-						<div class="message--bubble loading-bubble">
-							<span class="loading-dots">
-								<span />
-								<span />
-								<span />
-							</span>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
+    <!-- 聊天區 -->
+    <div
+      ref="chatAreaRef"
+      class="chat-area scrollbar-custom"
+    >
+      <!-- 置頂訊息 -->
+      <div class="chat-message sticky-message">
+        <div
+          class="sticky-header"
+          @click="toggleSticky"
+        >
+          <span>置頂公告：小幫手使用須知</span>
+          <button class="toggle-btn">
+            {{ isStickyOpen ? "-" : "+" }}
+          </button>
+        </div>
+        <div
+          v-show="isStickyOpen"
+          class="sticky-body"
+        >
+          <span>小幫手會依據您輸入的內容，自動檢索本站臺的組件資料庫，並回傳相似度較高的組件清單，協助您快速找到符合需求的元件或資訊。<br><br>
+            目前小幫手僅提供組件比對與分析服務，不支援一般聊天功能。如造成不便，敬請見諒！</span>
+        </div>
+      </div>
+      <div
+        v-for="chat in chatData"
+        :key="chat.id"
+        class="message"
+      >
+        <!-- 機器人訊息 -->
+        <div
+          v-if="chat.role === 'bot'"
+          class="bot"
+        >
+          <div class="avatar">
+            <BotLogo />
+          </div>
+          <div class="content">
+            <div
+              v-if="chat.content"
+              class="message--bubble"
+            >
+              <p>{{ chat.content }}</p>
+            </div>
+            <div
+              v-if="chat.button"
+              v-horizontal-wheel
+              class="message--button scrollbar-x-hide"
+            >
+              <button
+                v-for="btn in chat.button"
+                :key="btn.id"
+                :class="{
+                  'button--dashboard-link':
+                    btn.variant === 'dashboard-link',
+                }"
+                :title="
+                  btn.variant === 'dashboard-link'
+                    ? '前往並標示對應儀表板組件'
+                    : ''
+                "
+                @click="
+                  qaBtnHandler(
+                    btn.text,
+                    btn.target || chat.relations,
+                  )
+                "
+              >
+                {{ btn.text }}
+              </button>
+            </div>
+            <!-- 工具調用資訊 -->
+            <div
+              v-if="
+                chat.toolUsed &&
+                  chat.tools &&
+                  chat.tools.length > 0
+              "
+              class="tool-info"
+            >
+              <div class="tool-label">
+                使用工具：
+              </div>
+              <div
+                v-for="(tool, index) in chat.tools"
+                :key="index"
+                class="tool-item"
+              >
+                {{ tool }}
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 使用者訊息 -->
+        <div
+          v-else
+          class="user"
+        >
+          <div class="avatar">
+            <UserLogo />
+          </div>
+          <div
+            v-if="chat.content"
+            class="content"
+          >
+            <div class="message--bubble">
+              <p>{{ chat.content }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- AI 載入中訊息 -->
+      <div
+        v-if="isAILoading"
+        class="message"
+      >
+        <div class="bot">
+          <div class="avatar">
+            <BotLogo />
+          </div>
+          <div class="content">
+            <div class="message--bubble loading-bubble">
+              <span class="loading-dots">
+                <span />
+                <span />
+                <span />
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-		<!-- 輸入區 -->
-		<div class="input-area">
-			<input
-				v-model="userMessage"
-				type="text"
-				placeholder="輸入訊息..."
-				:disabled="isAILoading"
-				@keyup.enter="sendBtnHandler(userMessage)"
-			/>
-			<button
-				:disabled="isAILoading"
-				@click="sendBtnHandler(userMessage)"
-			>
-				<SendIcon />
-			</button>
-		</div>
-	</div>
+    <!-- 輸入區 -->
+    <div class="input-area">
+      <input
+        v-model="userMessage"
+        type="text"
+        placeholder="輸入訊息..."
+        :disabled="isAILoading"
+        @keyup.enter="sendBtnHandler(userMessage)"
+      >
+      <button
+        :disabled="isAILoading"
+        @click="sendBtnHandler(userMessage)"
+      >
+        <SendIcon />
+      </button>
+    </div>
+  </div>
 </template>
 
 <style lang="scss" scoped>

@@ -3,8 +3,6 @@
 // Six circular-economy datasets are loaded as clustered symbol layers
 // and culled by zoom + viewport for performance.
 
-import mapboxGl from "mapbox-gl";
-
 export const PIKMIN_COMPONENTS = [
 	{
 		id: "clothing",
@@ -185,90 +183,168 @@ export function setPikminLayerVisibility(map, componentId, visible) {
 	}
 }
 
-// Walking-animation marker. Idle = frame 3; walking = cycles 1→8→7→…→1.
+// Avatar rendered as a Mapbox canvas symbol layer so game-icon layers (added
+// afterwards) always render on top of the character — guaranteeing clicks work
+// even when the sprite overlaps an icon.
 export class AvatarMarker {
-	constructor(map, lngLat, { frameCount = 8, frameMs = 110, size = 96 } = {}) {
-		this.map = map;
+	constructor(map, lngLat, { frameCount = 8, frameMs = 100, size = 96 } = {}) {
+		this.map        = map;
 		this.frameCount = frameCount;
-		this.frameMs = frameMs;
-		this.size = size;
-		this.timer = null;
-		this.idx = 2; // start at frame 3 (standing)
-		this.dir = 1;
-		this._moving = false;
+		this.frameMs    = frameMs;
+		this.size       = size;
 
-		const el = document.createElement("div");
-		el.className = "pikmin-avatar";
-		el.style.cssText = `
-			width: ${size}px;
-			height: ${size}px;
-			pointer-events: none;
-			transform-origin: center bottom;
-			filter: drop-shadow(0 6px 6px rgba(0,0,0,0.45));
-		`;
-		const img = document.createElement("img");
-		img.style.cssText = "width:100%;height:100%;display:block;image-rendering:auto;";
-		img.draggable = false;
-		img.src = "/images/pikmin/avatar/3.webp"; // standing pose
-		el.appendChild(img);
+		this._idx         = 2;   // standing frame
+		this._dir         = 1;
+		this._moving      = false;
+		this._facingLeft  = false;
+		this._lngLat      = [lngLat[0], lngLat[1]];
+		this._lastFrameTime = 0;
+		this._rafId       = null;
+		this._loadedCount = 0;
 
-		this.el = el;
-		this.img = img;
-		this.marker = new mapboxGl.Marker({
-			element: el,
-			anchor: "bottom",
-			pitchAlignment: "viewport",
-			rotationAlignment: "viewport",
-		})
-			.setLngLat(lngLat)
-			.addTo(map);
+		const dpr = Math.min(window.devicePixelRatio || 1, 2);
+		this._dpr = dpr;
+
+		// Off-screen canvas — sized at CSS pixels × dpr for HiDPI sharpness.
+		const canvas = document.createElement("canvas");
+		canvas.width  = size * dpr;
+		canvas.height = size * dpr;
+		this._canvas = canvas;
+		this._ctx    = canvas.getContext("2d");
+
+		// Preload all animation frames.
+		this._frames = Array.from({ length: frameCount }, (_, i) => {
+			const img = new Image();
+			img.onload = () => {
+				this._loadedCount++;
+				// Draw as soon as standing frame is ready; don't wait for all frames.
+				if (i === this._idx || this._loadedCount === frameCount) this._drawFrame(this._idx);
+			};
+			img.onerror = () => { this._loadedCount++; };
+			img.src = `/images/pikmin/avatar/${i + 1}.webp`;
+			return img;
+		});
+
+		this._imageId  = "pikmin-avatar-img";
+		this._sourceId = "pikmin-avatar-src";
+		this._layerId  = "pikmin-avatar-layer";
+
+		// Clear any stale hot-reload leftovers before re-registering avatar resources.
+		if (map.getLayer(this._layerId)) map.removeLayer(this._layerId);
+		if (map.getSource(this._sourceId)) map.removeSource(this._sourceId);
+		if (map.hasImage(this._imageId)) map.removeImage(this._imageId);
+
+		// Register blank image first so the layer references it immediately.
+		this._ctx.clearRect(0, 0, canvas.width, canvas.height);
+		const blank = this._ctx.getImageData(0, 0, canvas.width, canvas.height);
+		map.addImage(this._imageId, blank, { pixelRatio: dpr, sdf: false });
+
+		map.addSource(this._sourceId, {
+			type: "geojson",
+			data: {
+				type: "Feature",
+				geometry: { type: "Point", coordinates: lngLat },
+				properties: {},
+			},
+		});
+
+		// Layer is added here — setupPikminLayers() is called AFTER the
+		// constructor so those icon layers sit above this one in the style.
+		map.addLayer({
+			id: this._layerId,
+			type: "symbol",
+			source: this._sourceId,
+			layout: {
+				"icon-image": this._imageId,
+				"icon-size": 1,
+				"icon-allow-overlap": true,
+				"icon-ignore-placement": true,
+				"icon-anchor": "bottom",
+				"icon-pitch-alignment": "viewport",
+				"icon-rotation-alignment": "viewport",
+			},
+		});
 	}
 
-	// No-op — kept for backwards compatibility; animation is driven by setMoving().
-	start() {}
-
-	setMoving(moving) {
-		if (moving === this._moving) return;
-		this._moving = moving;
-		if (moving) {
-			if (this.timer) return;
-			this.timer = setInterval(() => {
-				this.idx += this.dir;
-				if (this.idx >= this.frameCount - 1) {
-					this.idx = this.frameCount - 1;
-					this.dir = -1;
-				} else if (this.idx <= 0) {
-					this.idx = 0;
-					this.dir = 1;
-				}
-				this.img.src = `/images/pikmin/avatar/${this.idx + 1}.webp`;
-			}, this.frameMs);
+	_drawFrame(idx) {
+		if (!this.map || !this.map.hasImage(this._imageId)) return;
+		const frame = this._frames[idx];
+		if (!frame?.complete || !frame.naturalWidth) return;
+		const { _ctx: ctx, _canvas: canvas, _facingLeft: left } = this;
+		const { width, height } = canvas;
+		ctx.clearRect(0, 0, width, height);
+		if (left) {
+			ctx.save();
+			ctx.translate(width, 0);
+			ctx.scale(-1, 1);
+			ctx.drawImage(frame, 0, 0, width, height);
+			ctx.restore();
 		} else {
-			clearInterval(this.timer);
-			this.timer = null;
-			this.idx = 2;
-			this.dir = 1;
-			this.img.src = "/images/pikmin/avatar/3.webp";
+			ctx.drawImage(frame, 0, 0, width, height);
 		}
+		const frameData = ctx.getImageData(0, 0, width, height);
+		this.map.updateImage(this._imageId, frameData);
+	}
+
+	_animLoop(timestamp) {
+		if (!this.map) return; // destroyed — stop re-scheduling
+		this._rafId = requestAnimationFrame((t) => this._animLoop(t));
+		if (!this._moving) return;
+		if (timestamp - this._lastFrameTime < this.frameMs) return;
+		this._lastFrameTime = timestamp;
+		this._idx += this._dir;
+		if (this._idx >= this.frameCount - 1) { this._idx = this.frameCount - 1; this._dir = -1; }
+		else if (this._idx <= 0)              { this._idx = 0;                    this._dir =  1; }
+		this._drawFrame(this._idx);
+	}
+
+	start() {
+		if (this._rafId) return;
+		this._rafId = requestAnimationFrame((t) => this._animLoop(t));
 	}
 
 	stop() {
 		this.setMoving(false);
 	}
 
+	setMoving(moving) {
+		if (moving === this._moving) return;
+		this._moving = moving;
+		if (!moving) {
+			this._idx = 2;
+			this._dir = 1;
+			this._drawFrame(this._idx);
+		}
+	}
+
+	getLngLat() {
+		return { lng: this._lngLat[0], lat: this._lngLat[1] };
+	}
+
 	setLngLat(lngLat) {
-		this.marker.setLngLat(lngLat);
+		this._lngLat[0] = lngLat[0];
+		this._lngLat[1] = lngLat[1];
+		this.map.getSource(this._sourceId)?.setData({
+			type: "Feature",
+			geometry: { type: "Point", coordinates: lngLat },
+			properties: {},
+		});
 	}
 
 	face(direction) {
-		// direction: "left" | "right"
-		this.el.style.transform =
-			direction === "left" ? "scaleX(-1)" : "scaleX(1)";
+		const left = direction === "left";
+		if (this._facingLeft === left) return;
+		this._facingLeft = left;
+		this._drawFrame(this._idx);
 	}
 
 	destroy() {
-		this.stop();
-		this.marker.remove();
+		if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
+		const { map } = this;
+		this.map = null; // guard against late-firing RAF / onload callbacks
+		if (map?.getLayer(this._layerId))   map.removeLayer(this._layerId);
+		if (map?.getSource(this._sourceId)) map.removeSource(this._sourceId);
+		if (map?.hasImage(this._imageId))   map.removeImage(this._imageId);
 	}
 }
 
