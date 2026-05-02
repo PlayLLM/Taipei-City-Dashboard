@@ -1,6 +1,6 @@
 -- ============================================================
 -- 舊衣回收箱組件配置
--- 修正：參考循環杯設計，使用 two_d 查詢類型
+-- 使用 symbol 類型 + shirt SVG 圖示（透過 Canvas 預載機制支援）
 -- 資料庫: dashboardmanager
 -- ============================================================
 
@@ -19,17 +19,17 @@ SET color = EXCLUDED.color,
     types = EXCLUDED.types,
     unit = EXCLUDED.unit;
 
--- 2. 地圖圖層設定 (改用 circle 類型，與循環杯相同機制，確保標點能正常顯示)
+-- 2. 地圖圖層設定 (symbol 類型 + shirt SVG 圖示)
 INSERT INTO public.component_maps (id, index, title, type, source, size, icon, paint, property)
 VALUES (
     330,
     'used_clothing_box_metrotaipei',
     '雙北舊衣回收箱',
-    'circle',
+    'symbol',
     'geojson',
     'big',
-    NULL,
-    '{"circle-color":"#4A80E0","circle-opacity":0.85,"circle-stroke-color":"#FFFFFF","circle-stroke-width":1.2}'::json,
+    'shirt',
+    '{}'::json,
     '[
         {"key":"org","name":"設置單位"},
         {"key":"address","name":"地址"},
