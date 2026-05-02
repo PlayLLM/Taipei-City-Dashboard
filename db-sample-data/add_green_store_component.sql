@@ -42,10 +42,12 @@ JOIN public.groups g ON g.name IN ('public', 'taipei', 'metrotaipei') AND g.is_p
 WHERE d.index = 'climate-environment'
 ON CONFLICT DO NOTHING;
 
+DELETE FROM public.components WHERE index = 'green_store_distribution';
+
 INSERT INTO public.components (id, index, name)
-VALUES (306, 'green_store_distribution', '綠色商店分布')
-ON CONFLICT (id) DO UPDATE
-SET index = EXCLUDED.index,
+VALUES (308, 'green_store_distribution', '綠色商店分布')
+ON CONFLICT (index) DO UPDATE
+SET id = EXCLUDED.id,
     name = EXCLUDED.name;
 
 INSERT INTO public.component_charts (index, color, types, unit)
@@ -282,21 +284,9 @@ VALUES
 );
 
 UPDATE public.dashboards
-SET components = array_append(components, 306),
+SET components = array_append(components, 308),
     updated_at = NOW()
 WHERE index = 'climate-environment'
-  AND NOT 306 = ANY(components);
-
-UPDATE public.dashboards
-SET components = array_remove(COALESCE(components, '{}'), 305),
-    updated_at = NOW()
-WHERE index = 'climate-environment'
-  AND 305 = ANY(COALESCE(components, '{}'))
-  AND EXISTS (
-      SELECT 1
-      FROM public.components
-      WHERE id = 305
-        AND index <> 'green_store_distribution'
-  );
+  AND NOT 308 = ANY(components);
 
 COMMIT;

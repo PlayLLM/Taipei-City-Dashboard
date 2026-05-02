@@ -23,9 +23,18 @@ const authStore = useAuthStore();
 const tabLink = computed(() => {
 	const isAdminPath = authStore.currentPath === "admin";
 	const cityParam = props.city ? `${isAdminPath ? "?" : "&"}city=${props.city}` : "";
-	return isAdminPath
-		? `/admin/${props.index}${cityParam}`
-		: `${route.path}?index=${props.index}${cityParam}`;
+	
+	if (isAdminPath) {
+		return `/admin/${props.index}${cityParam}`;
+	}
+	
+	// If we are on a special page like /explore, we want to go back to /dashboard
+	const currentPath = route.path.toLowerCase();
+	const baseRoute = (currentPath === "/dashboard" || currentPath === "/mapview") 
+		? route.path 
+		: "/dashboard";
+		
+	return `${baseRoute}?index=${props.index}${cityParam}`;
 });
 
 const linkActiveOrNot = computed(() => {

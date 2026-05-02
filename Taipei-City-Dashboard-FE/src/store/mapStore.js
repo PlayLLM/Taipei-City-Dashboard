@@ -320,6 +320,53 @@ export const useMapStore = defineStore("map", {
 					},
 				);
 			});
+
+			// 預載 SVG 圖示（透過 Canvas 動態渲染，支援透明背景）
+			const svgImages = [
+				{
+					name: "shirt",
+					url: "/images/map/shirt.svg",
+					size: 64,
+					bgColor: "#2B5FBF", // 深藍色背景，與圖表主色一致
+				},
+			];
+			const loadSvgAsMapboxImage = (name, url, size, bgColor) => {
+				return new Promise((resolve) => {
+					const img = new Image();
+					img.onload = () => {
+						const canvas = document.createElement("canvas");
+						canvas.width = size;
+						canvas.height = size;
+						const ctx = canvas.getContext("2d");
+						// 繪製圓形背景
+						if (bgColor) {
+							const radius = size / 2;
+							ctx.beginPath();
+							ctx.arc(radius, radius, radius, 0, Math.PI * 2);
+							ctx.fillStyle = bgColor;
+							ctx.fill();
+						}
+						// 將 SVG 繪製於圓形內，留 12% padding
+						const pad = size * 0.12;
+						ctx.drawImage(img, pad, pad, size - pad * 2, size - pad * 2);
+						const imageData = ctx.getImageData(0, 0, size, size);
+						if (!this.map.hasImage(name)) {
+							this.map.addImage(name, imageData, { pixelRatio: 2 });
+						}
+						resolve();
+					};
+					img.onerror = () => {
+						console.warn(`SVG 圖示載入失敗: ${url}`);
+						resolve();
+					};
+					img.src = url;
+				});
+			};
+			await Promise.all(
+				svgImages.map(({ name, url, size, bgColor }) =>
+					loadSvgAsMapboxImage(name, url, size, bgColor),
+				),
+			);
 			// 預載 3D 模型給 3D Mrt Map
 			const models = [
 				{ id: "mrt_car_c381", url: "/images/map/mrt_car_c381.glb" },

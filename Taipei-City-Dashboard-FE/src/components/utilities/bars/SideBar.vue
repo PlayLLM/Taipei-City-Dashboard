@@ -2,12 +2,15 @@
 
 <script setup>
 import { onMounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 import { useContentStore } from "../../../store/contentStore";
 import { useDialogStore } from "../../../store/dialogStore";
 import { useMapStore } from "../../../store/mapStore";
 import { useAuthStore } from "../../../store/authStore";
 
 import SideBarTab from "../miscellaneous/SideBarTab.vue";
+
+const route = useRoute();
 
 const contentStore = useContentStore();
 const dialogStore = useDialogStore();
@@ -78,6 +81,7 @@ onMounted(() => {
       sidebar: true,
       'sidebar-collapse': !isExpanded,
       'hide-if-mobile': true,
+      'full-height': route.path === '/explore',
     }"
   >
     <div
@@ -153,6 +157,19 @@ onMounted(() => {
         </div>
       </transition>
     </template>
+    <h1>{{ isExpanded ? `互動遊戲` : `遊戲` }}</h1>
+    <router-link
+      to="/explore"
+      :class="{
+        sidebartab: true,
+        'sidebartab-active': route.path === '/explore',
+      }"
+    >
+      <span :title="!isExpanded ? '小狐探城' : ''" class="fox-icon">🦊</span>
+      <h3 v-if="isExpanded">
+        小狐探城
+      </h3>
+    </router-link>
     <h1 @click="toggleCollapse(contentStore.cityManager.activeCities)">
       {{ isExpanded ? `公共儀表板` : `公共` }}
     </h1>
@@ -201,6 +218,19 @@ onMounted(() => {
 	overflow-x: hidden;
 	overflow-y: scroll;
 	user-select: none;
+
+	&.full-height {
+		height: 100vh;
+		height: calc(var(--vh) * 100);
+		max-height: 100vh;
+		max-height: calc(var(--vh) * 100);
+		margin-top: 0;
+		padding-top: 20px;
+
+		.sidebar-collapse-btnContainer {
+			top: 18px;
+		}
+	}
 
 	h1 {
 		cursor: pointer;
@@ -294,6 +324,55 @@ onMounted(() => {
 					font-family: var(--font-icon);
 					font-size: var(--font-l);
 				}
+			}
+		}
+	}
+
+	.sidebartab {
+		max-height: var(--font-xl);
+		display: flex;
+		align-items: center;
+		margin: var(--font-s) 0;
+		border-left: solid 4px transparent;
+		border-radius: 0 5px 5px 0;
+		transition: background-color 0.2s;
+		white-space: nowrap;
+		text-wrap: nowrap;
+		text-decoration: none;
+		color: inherit;
+
+		&:hover {
+			background-color: var(--color-component-background);
+		}
+
+		span {
+			min-width: var(--font-l);
+			margin-left: var(--font-s);
+			font-family: var(--font-icon);
+			font-size: calc(var(--font-m) * var(--font-to-icon));
+
+			&.fox-icon {
+				font-family: inherit;
+				font-size: var(--font-l);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+		}
+
+		h3 {
+			margin-left: var(--font-s);
+			font-size: var(--font-m);
+			font-weight: 400;
+		}
+
+		&-active {
+			border-left-color: var(--color-highlight);
+			background-color: var(--color-component-background);
+
+			span,
+			h3 {
+				color: var(--color-highlight);
 			}
 		}
 	}

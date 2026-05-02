@@ -501,6 +501,20 @@ export const maplayerCommonLayout = {
 			1.4,
 		],
 	},
+	"symbol-shirt": {
+		"icon-image": "shirt",
+		"icon-size": [
+			"interpolate",
+			["linear"],
+			["zoom"],
+			11.99,
+			0.3,
+			14,
+			0.5,
+			22,
+			0.8,
+		],
+	},
 	"symbol-metro-density": {
 		"icon-image": "metro",
 		"icon-size": [

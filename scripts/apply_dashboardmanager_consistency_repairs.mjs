@@ -225,6 +225,7 @@ const managerSqlFiles = [
   "add_eco_restaurant_component.sql",
   "add_scooter_charging_component.sql",
   "add_drinking_fountain_component.sql",
+  "add_used_clothing_box_component.sql",
   "add_circular_economy_dashboard.sql",
   "add_green_store_component.sql",
   "add_all_in_one_dashboard.sql",
