@@ -73,6 +73,7 @@ type aiSession struct {
 	totalOutput     int
 	toolUsed        bool
 	executedTools   []string
+	toolResults     []map[string]string
 	lastResp        *llms.ContentResponse
 	lastErr         error
 	startTime       time.Time
@@ -81,6 +82,7 @@ type aiSession struct {
 func (s *aiSession) run(ctx context.Context) (*models.AIChatLog, error) {
 	maxLoops := 5
 	s.executedTools = make([]string, 0)
+	s.toolResults = make([]map[string]string, 0)
 	for i := 0; i < maxLoops; i++ {
 		s.sendHeartbeat(ctx)
 
@@ -148,7 +150,7 @@ func (s *aiSession) updateTokens() {
 
 func (s *aiSession) executeTools(ctx context.Context, toolCalls []llms.ToolCall) error {
 	choice := s.lastResp.Choices[0]
-	
+
 	// Add Assistant's intent
 	s.currentMessages = append(s.currentMessages, llms.MessageContent{
 		Role:  llms.ChatMessageTypeAI,
@@ -169,6 +171,10 @@ func (s *aiSession) executeTools(ctx context.Context, toolCalls []llms.ToolCall)
 				ToolCallID: tc.ID, Name: tc.FunctionCall.Name, Content: result,
 			}},
 		})
+		s.toolResults = append(s.toolResults, map[string]string{
+			"name":    tc.FunctionCall.Name,
+			"content": result,
+		})
 	}
 	return nil
 }
@@ -176,12 +182,14 @@ func (s *aiSession) executeTools(ctx context.Context, toolCalls []llms.ToolCall)
 func (s *aiSession) injectInstructions() {
 	toolNames := ""
 	for i, t := range s.callOpts.Tools {
-		if i > 0 { toolNames += ", " }
+		if i > 0 {
+			toolNames += ", "
+		}
 		toolNames += t.Function.Name
 	}
 
 	instruction := fmt.Sprintf("\nSystem Instruction:\n1. Use ONLY: [%s].\n2. NEVER nest tool calls \n3. Arguments MUST be literal values (strings, integers, etc.), never function calls \n4. For dependent tasks, call tools sequentially in separate turns.\n5. If stuck, respond with text.", toolNames)
-	
+
 	s.currentMessages = make([]llms.MessageContent, 0)
 	merged := false
 	for _, m := range s.req.Messages {
@@ -192,10 +200,10 @@ func (s *aiSession) injectInstructions() {
 			s.currentMessages = append(s.currentMessages, m)
 		}
 	}
-	
+
 	if !merged {
 		s.currentMessages = append([]llms.MessageContent{{
-			Role: llms.ChatMessageTypeSystem,
+			Role:  llms.ChatMessageTypeSystem,
 			Parts: []llms.ContentPart{llms.TextContent{Text: "Instruction: Use tools: [" + toolNames + "]."}},
 		}}, s.currentMessages...)
 	}
@@ -227,6 +235,9 @@ func (s *aiSession) finalize() (*models.AIChatLog, error) {
 			if toolJSON, err := json.Marshal(s.executedTools); err == nil {
 				log.Tools = string(toolJSON)
 			}
+			if resultJSON, err := json.Marshal(s.toolResults); err == nil {
+				log.ToolResults = string(resultJSON)
+			}
 		}
 	}
 
@@ -238,7 +249,9 @@ func (s *aiSession) finalize() (*models.AIChatLog, error) {
 
 func toolsToParts(calls []llms.ToolCall) []llms.ContentPart {
 	parts := make([]llms.ContentPart, len(calls))
-	for i, c := range calls { parts[i] = c }
+	for i, c := range calls {
+		parts[i] = c
+	}
 	return parts
 }
 
@@ -256,15 +269,20 @@ func mergeSystemMsg(m llms.MessageContent, instruction string) llms.MessageConte
 
 func extractText(m llms.MessageContent) string {
 	for _, p := range m.Parts {
-		if t, ok := p.(llms.TextContent); ok { return t.Text }
+		if t, ok := p.(llms.TextContent); ok {
+			return t.Text
+		}
 	}
 	return ""
 }
 
 func parseUsageInt(val interface{}) int {
 	switch v := val.(type) {
-	case int: return v
-	case float64: return int(v)
-	default: return 0
+	case int:
+		return v
+	case float64:
+		return int(v)
+	default:
+		return 0
 	}
 }

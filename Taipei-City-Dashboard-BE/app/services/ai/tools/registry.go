@@ -17,6 +17,7 @@ func init() {
 	// Register demo tools
 	Register("get_current_time", GetCurrentTime)
 	Register("get_population_summary", GetPopulationSummary)
+	Register("match_dashboard_components", MatchDashboardComponents)
 }
 
 // Register adds a tool to the registry
@@ -39,6 +40,53 @@ type PopulationArgs struct {
 	Year int    `json:"year"`
 }
 
+// DashboardMatchArgs defines the arguments for the match_dashboard_components tool.
+type DashboardMatchArgs struct {
+	Query          string  `json:"query"`
+	Limit          int     `json:"limit"`
+	ScoreThreshold float64 `json:"score_threshold"`
+}
+
+// MatchDashboardComponents finds dashboard components that are semantically related
+// to the user's query and returns navigation targets the UI can render as CTAs.
+func MatchDashboardComponents(ctx context.Context, args string) (string, error) {
+	var params DashboardMatchArgs
+	if err := parseArgs(args, &params); err != nil {
+		return "", fmt.Errorf("invalid arguments: %v", err)
+	}
+
+	if params.Query == "" {
+		return "", fmt.Errorf("query is required")
+	}
+	if params.Limit <= 0 || params.Limit > 10 {
+		params.Limit = 5
+	}
+	if params.ScoreThreshold <= 0 || params.ScoreThreshold > 1 {
+		params.ScoreThreshold = 0.78
+	}
+
+	components, err := models.GetComponentByQueryVector(params.Query, params.Limit, params.ScoreThreshold)
+	if err != nil {
+		return "", err
+	}
+
+	output := struct {
+		Matched bool                        `json:"matched"`
+		Query   string                      `json:"query"`
+		Matches []models.CityComponentScore `json:"matches"`
+	}{
+		Matched: len(components) > 0,
+		Query:   params.Query,
+		Matches: components,
+	}
+
+	result, err := json.Marshal(output)
+	if err != nil {
+		return "", err
+	}
+	return string(result), nil
+}
+
 // GetPopulationSummary queries the population age distribution from the dashboard database
 func GetPopulationSummary(ctx context.Context, args string) (string, error) {
 	var params PopulationArgs
@@ -56,11 +104,11 @@ func GetPopulationSummary(ctx context.Context, args string) (string, error) {
 
 	// Define result structure based on database schema
 	var result struct {
-		Year      int `gorm:"column:year"`
-		Young     int `gorm:"column:young_population"`
-		Working   int `gorm:"column:working_age_population"`
-		Elderly   int `gorm:"column:elderly_population"`
-		DataTime  time.Time `gorm:"column:data_time"`
+		Year     int       `gorm:"column:year"`
+		Young    int       `gorm:"column:young_population"`
+		Working  int       `gorm:"column:working_age_population"`
+		Elderly  int       `gorm:"column:elderly_population"`
+		DataTime time.Time `gorm:"column:data_time"`
 	}
 
 	// Query the dashboard database
