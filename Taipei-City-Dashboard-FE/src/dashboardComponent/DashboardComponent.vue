@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from "vue";
+import { computed, ref, useAttrs } from "vue";
 // import "./styles/chartStyles.css";
 // import "./styles/toggleswitch.css";
 import "material-icons/iconfont/material-icons.css";
@@ -91,6 +91,7 @@ const emits = defineEmits([
 	"changeCity"
 ]);
 
+const attrs = useAttrs();
 const activeChart = ref(props.config.chart_config.types[0]);
 const activeCity = computed({
 	get: () => props.activeCity,
@@ -230,6 +231,7 @@ function returnChartComponent(name, svg) {
 
 <template>
   <div
+    v-bind="attrs"
     :class="[
       {
         dashboardcomponent: true,
@@ -562,6 +564,24 @@ button:hover {
 	border-radius: 5px;
 	background-color: var(--color-component-background);
 
+	&.dashboard-component-highlight {
+		animation: dashboard-component-glow-flash 2.2s ease-in-out;
+		outline: 1px solid rgba(255, 255, 255, 0.9);
+		outline-offset: 4px;
+		scroll-margin: 96px;
+		will-change: transform, box-shadow;
+	}
+
+	&.dashboard-component-highlight::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		border-radius: 5px;
+		pointer-events: none;
+		z-index: 20;
+		animation: dashboard-component-border-glow 2.2s ease-in-out;
+	}
+
 	@media (min-width: 1050px) {
 		height: 370px;
 		max-height: 370px;
@@ -827,6 +847,61 @@ button:hover {
 @keyframes spin {
 	to {
 		transform: rotate(360deg);
+	}
+}
+
+@keyframes dashboard-component-glow-flash {
+	0% {
+		box-shadow: none;
+		transform: translateY(0) scale(1);
+	}
+	16% {
+		box-shadow:
+			0 0 0 1px rgba(255, 255, 255, 0.9),
+			0 0 12px 3px rgba(255, 255, 255, 0.62),
+			0 0 34px 8px rgba(82, 168, 255, 0.36);
+		transform: translateY(-6px) scale(1.01);
+	}
+	42% {
+		box-shadow:
+			0 0 0 1px rgba(255, 255, 255, 0.25),
+			0 0 10px 2px rgba(255, 255, 255, 0.2);
+		transform: translateY(0) scale(1);
+	}
+	68% {
+		box-shadow:
+			0 0 0 1px rgba(255, 255, 255, 0.86),
+			0 0 18px 4px rgba(255, 255, 255, 0.5),
+			0 0 42px 10px rgba(82, 168, 255, 0.32);
+		transform: translateY(-4px) scale(1.006);
+	}
+	100% {
+		box-shadow: none;
+		transform: translateY(0) scale(1);
+	}
+}
+
+@keyframes dashboard-component-border-glow {
+	0%,
+	100% {
+		opacity: 0;
+	}
+	18% {
+		opacity: 1;
+		box-shadow:
+			inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+			0 0 12px 3px rgba(255, 255, 255, 0.55),
+			0 0 28px 8px rgba(82, 168, 255, 0.28);
+	}
+	45% {
+		opacity: 0.2;
+	}
+	66% {
+		opacity: 0.9;
+		box-shadow:
+			inset 0 0 0 1px rgba(255, 255, 255, 0.85),
+			0 0 16px 4px rgba(255, 255, 255, 0.45),
+			0 0 36px 10px rgba(82, 168, 255, 0.24);
 	}
 }
 
