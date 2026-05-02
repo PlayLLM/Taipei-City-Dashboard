@@ -10,7 +10,7 @@ BEGIN;
 INSERT INTO public.component_charts (index, color, types, unit)
 VALUES (
     'metrotaipei_used_clothing_box',
-    ARRAY['#3F51B5'], -- 使用深藍色調
+    ARRAY['#B3C7F0', '#7EA5E8', '#4A80E0', '#2B5FBF', '#1A3D8F'], -- 5段漸層色，對應低→高數量
     ARRAY['DistrictChart', 'ColumnChart'],
     '個'
 )
@@ -19,17 +19,17 @@ SET color = EXCLUDED.color,
     types = EXCLUDED.types,
     unit = EXCLUDED.unit;
 
--- 2. 地圖圖層設定 (使用 symbol 類型並指定 shirt 圖標)
+-- 2. 地圖圖層設定 (改用 circle 類型，與循環杯相同機制，確保標點能正常顯示)
 INSERT INTO public.component_maps (id, index, title, type, source, size, icon, paint, property)
 VALUES (
-    330, -- 分配一個新的 ID
+    330,
     'used_clothing_box_metrotaipei',
     '雙北舊衣回收箱',
-    'symbol',
+    'circle',
     'geojson',
     'big',
-    'shirt', -- 使用提供的 SVG 作為圖標 (需確保前端載入此圖標)
-    '{}'::json, -- symbol 類型的 paint 通常為空，除非有 icon-color 等
+    NULL,
+    '{"circle-color":"#4A80E0","circle-opacity":0.85,"circle-stroke-color":"#FFFFFF","circle-stroke-width":1.2}'::json,
     '[
         {"key":"org","name":"設置單位"},
         {"key":"address","name":"地址"},
