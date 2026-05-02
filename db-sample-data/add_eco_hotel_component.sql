@@ -22,7 +22,7 @@ INSERT INTO public.component_charts (index, color, types, unit)
 VALUES (
     'eco_hotel',
     ARRAY['#F5C518', '#ABABAB', '#CD7F32'],
-    ARRAY['ColumnChart', 'MapLegend'],
+    ARRAY['ColumnChart'],
     '間'
 )
 ON CONFLICT (index) DO UPDATE
