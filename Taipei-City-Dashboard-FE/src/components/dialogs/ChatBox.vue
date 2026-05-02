@@ -25,6 +25,15 @@ const chatAreaRef = ref(null);
 const isStickyOpen = ref(false);
 const dashboardCreationLoading = ref(false);
 
+defineProps({
+	displayMode: {
+		type: String,
+		default: "floating",
+	},
+});
+
+const emit = defineEmits(["toggle-display-mode"]);
+
 const qaBtnHandler = async (text, relations) => {
 	if (relations?.path) {
 		router.push(relations.path);
@@ -100,6 +109,9 @@ watch(
 		<!-- 標題 -->
 		<div class="header">
 			<h3>臺北城市儀表板小幫手</h3>
+			<button class="mode-btn" @click="emit('toggle-display-mode')">
+				{{ displayMode === "floating" ? "側邊欄" : "浮動視窗" }}
+			</button>
 		</div>
 
 		<!-- 聊天區 -->
@@ -171,8 +183,16 @@ watch(
 							<button
 								v-for="btn in chat.button"
 								:key="btn.id"
-								:class="{ 'button--dashboard-link': btn.variant === 'dashboard-link' }"
-								@click="qaBtnHandler(btn.text, btn.target || chat.relations)"
+								:class="{
+									'button--dashboard-link':
+										btn.variant === 'dashboard-link',
+								}"
+								@click="
+									qaBtnHandler(
+										btn.text,
+										btn.target || chat.relations,
+									)
+								"
 							>
 								{{ btn.text }}
 							</button>
@@ -299,12 +319,31 @@ $radius-20: 20px;
 		padding: 1rem;
 		background: $panel-bg;
 		border-bottom: 3px solid $border-color;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
 
 		h3 {
 			font-size: 18px;
 			font-weight: 700;
 			color: $white;
 			margin: 0;
+		}
+
+		.mode-btn {
+			flex-shrink: 0;
+			padding: 0.35rem 0.6rem;
+			border-radius: 999px;
+			background: $card-bg;
+			border: 1px solid $white;
+			color: $white;
+			font-size: 12px;
+			cursor: pointer;
+
+			&:hover {
+				filter: brightness(1.2);
+			}
 		}
 	}
 

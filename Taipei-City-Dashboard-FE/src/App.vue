@@ -50,6 +50,7 @@ const isMappedToUpdateBoards = ref(false);
 // Chatroom
 const isChatBtnShow = ref(true);
 const isChatBoxShow = ref(false);
+const chatDisplayMode = ref("floating");
 // Timers
 let chartTimer = null;
 let crowdingTimer = null;
@@ -169,6 +170,12 @@ function hideBtnClickHandler() {
 	isChatBoxShow.value = false;
 }
 
+function toggleChatDisplayMode() {
+	chatDisplayMode.value =
+		chatDisplayMode.value === "floating" ? "sidebar" : "floating";
+	isChatBoxShow.value = true;
+}
+
 (watch(
 	() => route.query,
 	(query) => {
@@ -183,7 +190,7 @@ function hideBtnClickHandler() {
 		timeToUpdate.value = frequency.value;
 	},
 ),
-{ immediate: true });
+	{ immediate: true });
 
 onBeforeMount(() => {
 	authStore.initialChecks();
@@ -219,79 +226,94 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app-container">
-    <NotificationBar />
-    <NavBar v-if="authStore.currentPath !== 'embed'" />
-    <!-- /mapview, /dashboard layouts -->
-    <div
-      v-if="
-        authStore.currentPath === 'mapview' ||
-          authStore.currentPath === 'dashboard'
-      "
-      class="app-content"
-    >
-      <SideBar />
-      <div class="app-content-main">
-        <SettingsBar />
-        <RouterView />
-      </div>
-    </div>
-    <!-- /admin layouts -->
-    <div
-      v-else-if="authStore.currentPath === 'admin'"
-      class="app-content"
-    >
-      <AdminSideBar />
-      <div class="app-content-main">
-        <RouterView />
-      </div>
-    </div>
-    <!-- /component, /component/:index layouts -->
-    <div
-      v-else-if="authStore.currentPath.includes('component')"
-      class="app-content"
-    >
-      <ComponentSideBar />
-      <div class="app-content-main">
-        <RouterView />
-      </div>
-    </div>
-    <div v-else>
-      <router-view />
-    </div>
-    <InitialWarning />
-    <LogIn />
-    <div
-      v-if="
-        ['dashboard', 'mapview'].includes(authStore.currentPath) &&
-          !authStore.isMobile &&
-          !authStore.isNarrowDevice
-      "
-      class="app-update"
-    >
-      <p>下次更新：{{ formattedTimeToUpdate }}</p>
-    </div>
-    <div class="chatbot-container">
-      <ChatBox
-        v-if="isChatBoxShow"
-        class="chatbox"
-      />
-      <div
-        v-if="isChatBtnShow"
-        class="chatbot-btn-area"
-      >
-        <div class="hide-chat-btn">
-          <button @click="hideBtnClickHandler" />
-        </div>
-        <button
-          class="chatbot-btn"
-          @click="chatbotBtnHandler"
-        >
-          <ChatBotIcon />
-        </button>
-      </div>
-    </div>
-  </div>
+	<div
+		class="app-container"
+		:class="{
+			'app-container--chat-sidebar':
+				chatDisplayMode === 'sidebar' && isChatBoxShow,
+		}"
+	>
+		<NotificationBar />
+		<NavBar v-if="authStore.currentPath !== 'embed'" />
+		<!-- /mapview, /dashboard layouts -->
+		<div
+			v-if="
+				authStore.currentPath === 'mapview' ||
+				authStore.currentPath === 'dashboard'
+			"
+			class="app-content"
+		>
+			<SideBar />
+			<div class="app-content-main">
+				<SettingsBar />
+				<RouterView />
+			</div>
+		</div>
+		<!-- /admin layouts -->
+		<div v-else-if="authStore.currentPath === 'admin'" class="app-content">
+			<AdminSideBar />
+			<div class="app-content-main">
+				<RouterView />
+			</div>
+		</div>
+		<!-- /component, /component/:index layouts -->
+		<div
+			v-else-if="authStore.currentPath.includes('component')"
+			class="app-content"
+		>
+			<ComponentSideBar />
+			<div class="app-content-main">
+				<RouterView />
+			</div>
+		</div>
+		<div v-else>
+			<router-view />
+		</div>
+		<InitialWarning />
+		<LogIn />
+		<div
+			v-if="
+				['dashboard', 'mapview'].includes(authStore.currentPath) &&
+				!authStore.isMobile &&
+				!authStore.isNarrowDevice
+			"
+			class="app-update"
+		>
+			<p>下次更新：{{ formattedTimeToUpdate }}</p>
+		</div>
+		<div
+			class="chatbot-container"
+			:class="{
+				'chatbot-container--sidebar': chatDisplayMode === 'sidebar',
+				'chatbot-container--floating': chatDisplayMode === 'floating',
+			}"
+		>
+			<ChatBox
+				v-if="isChatBoxShow"
+				class="chatbox"
+				:display-mode="chatDisplayMode"
+				@toggle-display-mode="toggleChatDisplayMode"
+			/>
+			<div
+				v-if="isChatBtnShow && chatDisplayMode === 'floating'"
+				class="chatbot-btn-area"
+			>
+				<div class="hide-chat-btn">
+					<button @click="hideBtnClickHandler" />
+				</div>
+				<button
+					v-if="isChatBoxShow"
+					class="chatbot-mode-btn"
+					@click="toggleChatDisplayMode"
+				>
+					{{ chatDisplayMode === "floating" ? "側邊欄" : "浮動視窗" }}
+				</button>
+				<button class="chatbot-btn" @click="chatbotBtnHandler">
+					<ChatBotIcon />
+				</button>
+			</div>
+		</div>
+	</div>
 </template>
 
 <style scoped lang="scss">
@@ -300,6 +322,13 @@ onBeforeUnmount(() => {
 		max-width: 100vw;
 		max-height: 100vh;
 		max-height: calc(var(--vh) * 100);
+
+		&--chat-sidebar {
+			.app-content {
+				width: 66.6667vw;
+				max-width: 66.6667vw;
+			}
+		}
 	}
 
 	&-content {
@@ -351,10 +380,39 @@ onBeforeUnmount(() => {
 		margin-bottom: 35px;
 	}
 
+	&--sidebar {
+		top: 60px;
+		right: 0;
+		bottom: 0;
+		width: 33.3333vw;
+		align-items: stretch;
+		gap: 0;
+
+		.chatbox {
+			width: 100%;
+			height: calc(100vh - 60px);
+			height: calc(var(--vh) * 100 - 60px);
+			margin-bottom: 0;
+			box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
+		}
+
+		:deep(.chat-widget) {
+			width: 100%;
+			height: 100%;
+			border-radius: 0;
+		}
+
+		.chatbot-btn-area {
+			justify-content: flex-end;
+			padding-bottom: 1.5rem;
+		}
+	}
+
 	.chatbot-btn-area {
 		position: relative;
 		display: flex;
 		flex-direction: column;
+		gap: 0.25rem;
 		.hide-chat-btn {
 			margin-left: auto;
 			button {
@@ -365,6 +423,21 @@ onBeforeUnmount(() => {
 			content: "–";
 			font-weight: bold; /* 變粗 */
 			font-size: 20px; /* 可以順便調整大小 */
+		}
+		.chatbot-mode-btn {
+			min-width: 70px;
+			padding: 0.35rem 0.5rem;
+			border-radius: 999px;
+			background: #494b4e;
+			border: 1px solid #ffffff;
+			color: #ffffff;
+			font-size: 12px;
+			cursor: pointer;
+			transition: filter 0.2s;
+
+			&:hover {
+				filter: brightness(1.2);
+			}
 		}
 		.chatbot-btn {
 			width: 70px;
