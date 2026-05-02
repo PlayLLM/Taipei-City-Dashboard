@@ -10,6 +10,8 @@ Testing: Jack Huang (Data Scientist), Ian Huang (Data Analysis Intern)
 
 <script setup>
 /* global gtag */
+import { nextTick, watch } from "vue";
+import { useRoute } from "vue-router";
 import DashboardComponent from "../dashboardComponent/DashboardComponent.vue";
 import router from "../router";
 import { useContentStore } from "../store/contentStore";
@@ -22,6 +24,7 @@ import ReportIssue from "../components/dialogs/ReportIssue.vue";
 const contentStore = useContentStore();
 const dialogStore = useDialogStore();
 const authStore = useAuthStore();
+const route = useRoute();
 
 function handleOpenSettings() {
 	contentStore.editDashboard = JSON.parse(
@@ -67,6 +70,30 @@ function handleMoreInfo(item) {
 		dialogStore.showMoreInfo(item);
 	}
 }
+
+function scrollToRouteComponent() {
+	const componentIndex = route.query.component;
+	if (!componentIndex) return;
+
+	nextTick(() => {
+		const target = document.getElementById(`dashboard-component-${componentIndex}`);
+		if (!target) return;
+		target.scrollIntoView({ behavior: "smooth", block: "center" });
+		target.classList.add("dashboard-component-highlight");
+		window.setTimeout(() => {
+			target.classList.remove("dashboard-component-highlight");
+		}, 1600);
+	});
+}
+
+watch(
+	[
+		() => route.query.component,
+		() => contentStore.currentDashboard.components,
+	],
+	scrollToRouteComponent,
+	{ deep: true, flush: "post" }
+);
 </script>
 
 <template>
@@ -77,6 +104,7 @@ function handleMoreInfo(item) {
   >
     <DashboardComponent
       v-for="item in contentStore.currentDashboard.components"
+      :id="`dashboard-component-${item.index}`"
       :key="`${item.index}-${item.city}`"
       :config="item"
       mode="half"
@@ -124,6 +152,7 @@ function handleMoreInfo(item) {
   >
     <DashboardComponent
       v-for="item in contentStore.currentDashboard.components"
+      :id="`dashboard-component-${item.index}`"
       :key="`${item.index}-${item.city}`"
       :config="item"
       :info-btn="true"
@@ -223,6 +252,14 @@ function handleMoreInfo(item) {
     </div>
   </div>
 </template>
+
+<style scoped>
+:deep(.dashboard-component-highlight) {
+	outline: 2px solid var(--color-highlight);
+	outline-offset: 4px;
+	transition: outline-color 0.2s ease;
+}
+</style>
 
 <style scoped lang="scss">
 .dashboard {

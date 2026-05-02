@@ -29,13 +29,13 @@ type AIChatInput struct {
 		} `json:"tool_calls,omitempty"`
 		ToolCallID string `json:"tool_call_id,omitempty"`
 	} `json:"messages" binding:"required,gt=0"`
-	MaxNewTokens     *int      `json:"max_new_tokens" binding:"omitempty,gt=0"`
-	Temperature      *float64  `json:"temperature" binding:"omitempty,gt=0"`
-	TopP             *float64  `json:"top_p" binding:"omitempty,gt=0,lte=1"`
-	TopK             *int      `json:"top_k" binding:"omitempty,gte=1,lte=100"`
-	FrequencePenalty *float64  `json:"frequence_penalty" binding:"omitempty,gt=0"`
-	StopSequences    []string  `json:"stop_sequences" binding:"omitempty,max=4"`
-	Seed             *int      `json:"seed" binding:"omitempty,gte=0"`
+	MaxNewTokens     *int     `json:"max_new_tokens" binding:"omitempty,gt=0"`
+	Temperature      *float64 `json:"temperature" binding:"omitempty,gt=0"`
+	TopP             *float64 `json:"top_p" binding:"omitempty,gt=0,lte=1"`
+	TopK             *int     `json:"top_k" binding:"omitempty,gte=1,lte=100"`
+	FrequencePenalty *float64 `json:"frequence_penalty" binding:"omitempty,gt=0"`
+	StopSequences    []string `json:"stop_sequences" binding:"omitempty,max=4"`
+	Seed             *int     `json:"seed" binding:"omitempty,gte=0"`
 	Tools            []struct {
 		Type     string `json:"type" binding:"required,eq=function"`
 		Function struct {
@@ -52,9 +52,9 @@ func ChatWithTWCC(c *gin.Context) {
 	var input AIChatInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"status": "error",
+			"status":     "error",
 			"error_code": "INVALID_REQUEST",
-			"message": err.Error(),
+			"message":    err.Error(),
 		})
 		return
 	}
@@ -102,9 +102,9 @@ func ChatWithTWCC(c *gin.Context) {
 		if err != nil {
 			if !c.Writer.Written() {
 				c.JSON(http.StatusInternalServerError, gin.H{
-					"status": "error",
+					"status":     "error",
 					"error_code": "AI_SERVICE_STREAM_ERROR",
-					"message": err.Error(),
+					"message":    err.Error(),
 				})
 			}
 		}
@@ -115,9 +115,9 @@ func ChatWithTWCC(c *gin.Context) {
 	logEntry, err := ai.ChatWithTWCC(c.Request.Context(), req, options...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"status": "error",
+			"status":     "error",
 			"error_code": "AI_SERVICE_ERROR",
-			"message": err.Error(),
+			"message":    err.Error(),
 		})
 		return
 	}
@@ -125,17 +125,19 @@ func ChatWithTWCC(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "success",
 		"data": gin.H{
-			"session":     logEntry.SessionID,
-			"content":     logEntry.Answer,
+			"session": logEntry.SessionID,
+			"content": logEntry.Answer,
 			"usage": gin.H{
 				"input_tokens":  logEntry.InputTokens,
 				"output_tokens": logEntry.OutputTokens,
 				"total_tokens":  logEntry.TotalTokens,
 			},
-			"tool_used":   logEntry.ToolUsed,
-			"latency_ms":  logEntry.LatencyMS,
-			"model":       logEntry.Model,
-			"provider":    logEntry.Provider,
+			"tool_used":    logEntry.ToolUsed,
+			"tools":        logEntry.Tools,
+			"tool_results": logEntry.ToolResults,
+			"latency_ms":   logEntry.LatencyMS,
+			"model":        logEntry.Model,
+			"provider":     logEntry.Provider,
 		},
 	})
 }
@@ -216,9 +218,12 @@ func (input *AIChatInput) ToCallOptions() []llms.CallOption {
 	}
 
 	// Map Tools
+	lt := defaultAITools()
 	if len(input.Tools) > 0 {
-		lt := make([]llms.Tool, 0)
 		for _, t := range input.Tools {
+			if hasTool(lt, t.Function.Name) {
+				continue
+			}
 			lt = append(lt, llms.Tool{
 				Type: t.Type,
 				Function: &llms.FunctionDefinition{
@@ -228,6 +233,8 @@ func (input *AIChatInput) ToCallOptions() []llms.CallOption {
 				},
 			})
 		}
+	}
+	if len(lt) > 0 {
 		options = append(options, llms.WithTools(lt))
 		if input.ToolChoice != nil {
 			options = append(options, llms.WithToolChoice(input.ToolChoice))
@@ -241,3 +248,43 @@ func (input *AIChatInput) ToCallOptions() []llms.CallOption {
 	return options
 }
 
+func defaultAITools() []llms.Tool {
+	return []llms.Tool{
+		{
+			Type: "function",
+			Function: &llms.FunctionDefinition{
+				Name:        "match_dashboard_components",
+				Description: "判斷使用者問題是否與臺北城市儀表板現有組件內容相關。若相關，回傳可導向 dashboard component 的 matches 與 path；若不相關，回傳 matched=false。使用者詢問城市資料、交通、人口、環境、長照、地圖圖層、統計指標、儀表板內容時可使用。",
+				Parameters: map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"query": map[string]interface{}{
+							"type":        "string",
+							"description": "使用者原始問題或要搜尋的主題描述。",
+						},
+						"limit": map[string]interface{}{
+							"type":        "integer",
+							"description": "最多回傳幾個相關組件，預設 5，上限 10。",
+							"default":     5,
+						},
+						"score_threshold": map[string]interface{}{
+							"type":        "number",
+							"description": "語意相似度門檻，預設 0.78。",
+							"default":     0.78,
+						},
+					},
+					"required": []string{"query"},
+				},
+			},
+		},
+	}
+}
+
+func hasTool(tools []llms.Tool, name string) bool {
+	for _, tool := range tools {
+		if tool.Function != nil && tool.Function.Name == name {
+			return true
+		}
+	}
+	return false
+}

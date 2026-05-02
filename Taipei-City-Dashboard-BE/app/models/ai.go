@@ -15,6 +15,7 @@ type AIChatLog struct {
 	Answer       string    `gorm:"type:text" json:"answer"`
 	ToolUsed     bool      `gorm:"default:false" json:"tool_used"`
 	Tools        string    `gorm:"type:jsonb" json:"tools"` // Stored as JSONB in DB
+	ToolResults  string    `gorm:"-" json:"tool_results,omitempty"`
 	InputTokens  int       `gorm:"default:0" json:"input_tokens"`
 	OutputTokens int       `gorm:"default:0" json:"output_tokens"`
 	TotalTokens  int       `gorm:"default:0" json:"total_tokens"`

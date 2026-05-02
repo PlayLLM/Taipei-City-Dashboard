@@ -9,6 +9,7 @@ import { useChatStore } from "../../store/chatStore";
 import { useContentStore } from "../../store/contentStore";
 import { useAuthStore } from "../../store/authStore";
 import http from "../../router/axios";
+import router from "../../router";
 
 const chatStore = useChatStore();
 const contentStore = useContentStore();
@@ -25,6 +26,11 @@ const isStickyOpen = ref(false);
 const dashboardCreationLoading = ref(false);
 
 const qaBtnHandler = async (text, relations) => {
+	if (relations?.path) {
+		router.push(relations.path);
+		saveChatLog(text, `使用者前往組件：${relations.name}`);
+		return;
+	}
 	if (text === "建立儀表板") {
 		if (dashboardCreationLoading.value === true) return;
 		dashboardCreationLoading.value = true;
@@ -165,7 +171,8 @@ watch(
 							<button
 								v-for="btn in chat.button"
 								:key="btn.id"
-								@click="qaBtnHandler(btn.text, chat.relations)"
+								:class="{ 'button--dashboard-link': btn.variant === 'dashboard-link' }"
+								@click="qaBtnHandler(btn.text, btn.target || chat.relations)"
 							>
 								{{ btn.text }}
 							</button>
@@ -469,6 +476,7 @@ $radius-20: 20px;
 						display: flex;
 						gap: 0.5rem;
 						overflow-x: auto;
+						padding: 2px 0;
 
 						button {
 							flex-shrink: 0;
@@ -483,6 +491,21 @@ $radius-20: 20px;
 
 							&:hover {
 								filter: brightness(0.5);
+							}
+
+							&.button--dashboard-link {
+								background: #18d2ff;
+								color: #071316;
+								border: 2px solid #ffffff;
+								box-shadow:
+									0 0 0 2px rgba(24, 210, 255, 0.25),
+									0 8px 18px rgba(24, 210, 255, 0.22);
+								font-weight: 700;
+
+								&:hover {
+									filter: brightness(1.12);
+									transform: translateY(-1px);
+								}
 							}
 						}
 					}

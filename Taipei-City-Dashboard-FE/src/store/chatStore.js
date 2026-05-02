@@ -115,11 +115,20 @@ export const useChatStore = defineStore("chat", () => {
 			topK = [...recommendComponents.value].sort(
 				(a, b) => b.score - a.score,
 			);
+			const buttons = [{ id: 1, text: "建立儀表板" }];
+			if (topK[0]?.path) {
+				buttons.unshift({
+					id: 2,
+					text: `前往「${topK[0].name}」組件`,
+					target: topK[0],
+					variant: "dashboard-link",
+				});
+			}
 			chatData.value.push({
 				id: chatData.value.length + 1,
 				role: "bot",
 				isDefault: false,
-				button: [{ id: 1, text: "建立儀表板" }],
+				button: buttons,
 				content: `您好 😊 \n 以下是根據您的問題，自動為您推薦的「組件清單」。您可以將這些組件整批加入「個人儀表板」，方便日後快速查看與使用。\n`,
 				relations: topK,
 			});
@@ -198,7 +207,7 @@ export const useChatStore = defineStore("chat", () => {
 				{
 					role: "system",
 					content:
-						"你是臺北城市儀表板小幫手，專門協助使用者了解臺北市的各項數據指標和城市資訊。請用繁體中文親切地回答使用者的問題。",
+						"你是臺北城市儀表板小幫手，專門協助使用者了解臺北市的各項數據指標和城市資訊。請用繁體中文親切地回答使用者的問題。若查到相關儀表板組件，請用自然語言摘要即可，不要輸出 /dashboard 開頭的內部路徑或網址。",
 				},
 				...buildChatMessages(),
 			];
@@ -269,11 +278,18 @@ export const useChatStore = defineStore("chat", () => {
 				// 加入 AI 回應到聊天記錄
 				addChatData({
 					role: "bot",
-					content: data.content || "抱歉，我無法理解您的問題。",
+					content:
+						sanitizeAIContent(data.content) ||
+						"抱歉，我無法理解您的問題。",
 					isAIResponse: true,
 					toolUsed: data.tool_used || false,
 					tools: toolsUsed,
 				});
+
+				const dashboardMatches = parseDashboardMatches(data.tool_results);
+				if (dashboardMatches.length > 0) {
+					addDashboardMatchMessage(dashboardMatches);
+				}
 
 				return data;
 			} else {
@@ -290,6 +306,70 @@ export const useChatStore = defineStore("chat", () => {
 		} finally {
 			isAILoading.value = false;
 		}
+	};
+
+	const parseDashboardMatches = (toolResults) => {
+		if (!toolResults) return [];
+
+		let parsedResults = toolResults;
+		if (typeof toolResults === "string") {
+			try {
+				parsedResults = JSON.parse(toolResults);
+			} catch (error) {
+				console.error("Failed to parse tool_results:", error);
+				return [];
+			}
+		}
+
+		if (!Array.isArray(parsedResults)) return [];
+
+		return parsedResults.flatMap((result) => {
+			if (result.name !== "match_dashboard_components") return [];
+
+			try {
+				const content =
+					typeof result.content === "string"
+						? JSON.parse(result.content)
+						: result.content;
+				return content?.matched && Array.isArray(content.matches)
+					? content.matches.filter((item) => item.path)
+					: [];
+			} catch (error) {
+				console.error("Failed to parse dashboard match result:", error);
+				return [];
+			}
+		});
+	};
+
+	const sanitizeAIContent = (content = "") => {
+		return content
+			.split("\n")
+			.filter(
+				(line) =>
+					!line.includes("/dashboard?index=") &&
+					!line.includes("前往以下網址"),
+			)
+			.join("\n")
+			.replace(/\n{3,}/g, "\n\n")
+			.trim();
+	};
+
+	const addDashboardMatchMessage = (matches) => {
+		const sortedMatches = [...matches].sort((a, b) => b.score - a.score);
+		const buttons = sortedMatches.slice(0, 4).map((match, index) => ({
+			id: index + 1,
+			text: `前往「${match.name}」組件`,
+			target: match,
+			variant: "dashboard-link",
+		}));
+
+		addChatData({
+			role: "bot",
+			isDefault: false,
+			button: buttons,
+			content: "我找到和問題相關的儀表板組件，可以直接前往查看。",
+			relations: sortedMatches,
+		});
 	};
 
 	// 清除 AI Session
