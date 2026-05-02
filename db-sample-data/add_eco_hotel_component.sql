@@ -106,7 +106,7 @@ BEGIN;
 INSERT INTO public.component_charts (index, color, types, unit)
 VALUES (
     'eco_hotel',
-    ARRAY['#F5C518', '#ABABAB', '#CD7F32', '#4CAF50'],
+    ARRAY['#F5C518', '#ABABAB', '#CD7F32'],
     ARRAY['ColumnChart', 'MapLegend'],
     '間'
 )
@@ -247,7 +247,7 @@ VALUES
     NOW(),
     'three_d',
     'WITH grades AS (
-        SELECT unnest(ARRAY[''金級'', ''銀級'', ''銅級'', ''其他'']) AS grade
+        SELECT unnest(ARRAY[''金級'', ''銀級'', ''銅級'']) AS grade
      ),
      districts AS (
         SELECT DISTINCT district FROM public.eco_hotel_metrotaipei WHERE city = ''臺北市''
@@ -281,7 +281,7 @@ VALUES
     NOW(),
     'three_d',
     'WITH grades AS (
-        SELECT unnest(ARRAY[''金級'', ''銀級'', ''銅級'', ''其他'']) AS grade
+        SELECT unnest(ARRAY[''金級'', ''銀級'', ''銅級'']) AS grade
      ),
      districts AS (
         SELECT DISTINCT district FROM public.eco_hotel_metrotaipei
