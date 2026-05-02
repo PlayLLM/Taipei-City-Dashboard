@@ -7,10 +7,20 @@
 若刪除 PostgreSQL volume 後要重建到目前開發環境的完整狀態，請依序執行：
 
 ```bash
+
 cd docker
-docker-compose -f docker-compose-db.yaml up -d
+
+# 1) 建立外部 network（compose 檔要求 external network）
+docker network create --driver=bridge --subnet=192.168.128.0/24 --gateway=192.168.128.1 br_dashboard
+
+# 2) 啟動 DB/Cache/Qdrant
+docker compose -f docker-compose-db.yaml up -d
+
+# 3) 初始化前後端依賴與 DB sample data
 docker compose -f docker-compose-init.yaml up --abort-on-container-exit
-docker-compose up -d
+
+# 4) 啟動 Nginx + FE + BE
+docker compose -f docker-compose.yaml up -d
 cd ..
 node scripts/apply_dashboardmanager_consistency_repairs.mjs
 ```

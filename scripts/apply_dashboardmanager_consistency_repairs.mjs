@@ -86,10 +86,16 @@ dockerCp(
 	config.dataContainer,
 	"/tmp/add_recycling_station_data.sql",
 );
+dockerCp(
+	"db-sample-data/add_eco_hotel_data.sql",
+	config.dataContainer,
+	"/tmp/add_eco_hotel_data.sql",
+);
 
 console.log("匯入 dashboard 資料表...");
 psql(config.dataContainer, config.dashboardDb, "/tmp/add_reusable_cup_data.sql");
 psql(config.dataContainer, config.dashboardDb, "/tmp/add_recycling_station_data.sql");
+psql(config.dataContainer, config.dashboardDb, "/tmp/add_eco_hotel_data.sql");
 
 console.log("產生資源回收站 GeoJSON...");
 run("node", ["scripts/generate_recycling_station_geojson.mjs"]);
@@ -99,6 +105,7 @@ const managerSqlFiles = [
 	"add_bike_network_length_component.sql",
 	"add_reusable_cup_component.sql",
 	"add_recycling_station_component.sql",
+	"add_eco_hotel_component.sql",
 	"repair_dashboardmanager_consistency.sql",
 	"audit_dashboardmanager_integrity.sql",
 ];
