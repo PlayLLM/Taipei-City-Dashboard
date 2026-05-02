@@ -6,6 +6,10 @@
 
 BEGIN;
 
+-- 0. 清除可能衝突的舊 ID (避免與飲水機衝突)
+DELETE FROM public.components WHERE id = 330 OR index = 'metrotaipei_used_clothing_box';
+UPDATE public.dashboards SET components = array_remove(components, 330);
+
 -- 1. 更新圖表配置 (使用 ColumnChart 縱向長條圖)
 INSERT INTO public.component_charts (index, color, types, unit)
 VALUES (
@@ -22,7 +26,7 @@ SET color = EXCLUDED.color,
 -- 2. 地圖圖層設定 (symbol 類型 + shirt SVG 圖示)
 INSERT INTO public.component_maps (id, index, title, type, source, size, icon, paint, property)
 VALUES (
-    330,
+    331,
     'used_clothing_box_metrotaipei',
     '雙北舊衣回收箱',
     'symbol',
@@ -76,7 +80,7 @@ INSERT INTO public.query_charts (
 ) VALUES (
     'metrotaipei_used_clothing_box',
     NULL,
-    '{330}',
+    '{331}',
     '{"mode":"byParam","byParam":{"xParam":"district"}}'::json,
     'static',
     NULL,
@@ -107,16 +111,16 @@ INSERT INTO public.query_charts (
 
 -- 4. 補齊 public.components 缺少的 rows
 INSERT INTO public.components (id, index, name)
-VALUES (330, 'metrotaipei_used_clothing_box', '雙北各區舊衣回收箱數量')
-ON CONFLICT (id) DO UPDATE
-SET index = EXCLUDED.index,
+VALUES (306, 'metrotaipei_used_clothing_box', '雙北各區舊衣回收箱數量')
+ON CONFLICT (index) DO UPDATE
+SET id = EXCLUDED.id,
     name  = EXCLUDED.name;
 
 -- 5. 將組件掛到「循環經濟」儀表板 (id: 402, index: circular-economy)
 UPDATE public.dashboards
-SET components = array_append(COALESCE(components, '{}'), 330),
+SET components = array_append(COALESCE(components, '{}'), 306),
     updated_at = NOW()
 WHERE index = 'circular-economy'
-  AND NOT 330 = ANY(COALESCE(components, '{}'));
+  AND NOT 306 = ANY(COALESCE(components, '{}'));
 
 COMMIT;
