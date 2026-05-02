@@ -185,7 +185,7 @@ export function setPikminLayerVisibility(map, componentId, visible) {
 	}
 }
 
-// Walking-animation marker. Cycles frames 1→8→7→…→2→1→…
+// Walking-animation marker. Idle = frame 3; walking = cycles 1→8→7→…→1.
 export class AvatarMarker {
 	constructor(map, lngLat, { frameCount = 8, frameMs = 110, size = 96 } = {}) {
 		this.map = map;
@@ -193,8 +193,9 @@ export class AvatarMarker {
 		this.frameMs = frameMs;
 		this.size = size;
 		this.timer = null;
-		this.idx = 0;
+		this.idx = 2; // start at frame 3 (standing)
 		this.dir = 1;
+		this._moving = false;
 
 		const el = document.createElement("div");
 		el.className = "pikmin-avatar";
@@ -208,7 +209,7 @@ export class AvatarMarker {
 		const img = document.createElement("img");
 		img.style.cssText = "width:100%;height:100%;display:block;image-rendering:auto;";
 		img.draggable = false;
-		img.src = "/images/pikmin/avatar/1.webp";
+		img.src = "/images/pikmin/avatar/3.webp"; // standing pose
 		el.appendChild(img);
 
 		this.el = el;
@@ -223,26 +224,36 @@ export class AvatarMarker {
 			.addTo(map);
 	}
 
-	start() {
-		if (this.timer) return;
-		this.timer = setInterval(() => {
-			this.idx += this.dir;
-			if (this.idx >= this.frameCount - 1) {
-				this.idx = this.frameCount - 1;
-				this.dir = -1;
-			} else if (this.idx <= 0) {
-				this.idx = 0;
-				this.dir = 1;
-			}
-			this.img.src = `/images/pikmin/avatar/${this.idx + 1}.webp`;
-		}, this.frameMs);
+	// No-op — kept for backwards compatibility; animation is driven by setMoving().
+	start() {}
+
+	setMoving(moving) {
+		if (moving === this._moving) return;
+		this._moving = moving;
+		if (moving) {
+			if (this.timer) return;
+			this.timer = setInterval(() => {
+				this.idx += this.dir;
+				if (this.idx >= this.frameCount - 1) {
+					this.idx = this.frameCount - 1;
+					this.dir = -1;
+				} else if (this.idx <= 0) {
+					this.idx = 0;
+					this.dir = 1;
+				}
+				this.img.src = `/images/pikmin/avatar/${this.idx + 1}.webp`;
+			}, this.frameMs);
+		} else {
+			clearInterval(this.timer);
+			this.timer = null;
+			this.idx = 2;
+			this.dir = 1;
+			this.img.src = "/images/pikmin/avatar/3.webp";
+		}
 	}
 
 	stop() {
-		if (this.timer) {
-			clearInterval(this.timer);
-			this.timer = null;
-		}
+		this.setMoving(false);
 	}
 
 	setLngLat(lngLat) {
@@ -269,27 +280,7 @@ export function applyGameEnvironment(map) {
 		map.setMaxPitch(75);
 	} catch { /* ignore */ }
 
-	try {
-		if (!map.getSource("mapbox-dem")) {
-			map.addSource("mapbox-dem", {
-				type: "raster-dem",
-				url: "mapbox://mapbox.mapbox-terrain-dem-v1",
-				tileSize: 512,
-				maxzoom: 14,
-			});
-		}
-		map.setTerrain({ source: "mapbox-dem", exaggeration: 1.3 });
-	} catch { /* ignore */ }
-
-	try {
-		map.setFog({
-			color: "#242B4B",
-			"high-color": "#161B2E",
-			"horizon-blend": 0.05,
-			"space-color": "#0B0E1A",
-			"star-intensity": 0.6,
-		});
-	} catch { /* ignore */ }
+	// No fog override — let the streets-v12 style handle the sky naturally.
 
 	try {
 		if (typeof map.setLights === "function") {
@@ -297,21 +288,51 @@ export function applyGameEnvironment(map) {
 				{
 					id: "ambient",
 					type: "ambient",
-					properties: { intensity: 0.5, color: "#ffeccc" },
+					properties: { intensity: 0.6, color: "#ffffff" },
 				},
 				{
 					id: "directional",
 					type: "directional",
 					properties: {
-						intensity: 0.85,
-						direction: [200, 40],
-						color: "#ffd580",
+						intensity: 0.7,
+						direction: [210, 40],
+						color: "#fff4d6",
 						"cast-shadows": true,
 					},
 				},
 			]);
 		}
 	} catch { /* ignore */ }
+}
+
+// Hide built-in Mapbox POI layers (restaurants, shops, etc.) so only game locations stand out.
+export function hideMapboxPOIs(map) {
+	const poiSourceLayers = ["poi", "poi_label"];
+	for (const layer of map.getStyle().layers) {
+		if (poiSourceLayers.includes(layer["source-layer"])) {
+			try {
+				map.setLayoutProperty(layer.id, "visibility", "none");
+			} catch { /* ignore */ }
+		}
+	}
+}
+
+// Hide minor road labels — only motorway / trunk / primary / secondary names remain.
+export function hideMinorRoadLabels(map) {
+	const majorClasses = ["motorway", "trunk", "primary", "secondary"];
+	const classFilter = ["in", ["get", "class"], ["literal", majorClasses]];
+
+	for (const layer of map.getStyle().layers) {
+		if (layer.type !== "symbol") continue;
+		if (!["road", "transportation"].includes(layer["source-layer"])) continue;
+		const existing = map.getFilter(layer.id);
+		try {
+			map.setFilter(
+				layer.id,
+				existing ? ["all", existing, classFilter] : classFilter,
+			);
+		} catch { /* ignore */ }
+	}
 }
 
 export function teardownPikmin(map) {
@@ -324,7 +345,4 @@ export function teardownPikmin(map) {
 		if (map.getLayer(cluster)) map.removeLayer(cluster);
 		if (map.getSource(src)) map.removeSource(src);
 	}
-	try {
-		map.setTerrain(null);
-	} catch { /* ignore */ }
 }

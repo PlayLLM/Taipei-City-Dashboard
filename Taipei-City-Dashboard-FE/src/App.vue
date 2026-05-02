@@ -234,14 +234,17 @@ onBeforeUnmount(() => {
 		}"
 	>
 		<NotificationBar />
-		<NavBar v-if="authStore.currentPath !== 'embed' && authStore.currentPath !== 'explore'" />
+		<NavBar 
+			v-if="authStore.currentPath !== 'embed'" 
+			:class="{ 'navbar-hidden': authStore.currentPath === 'explore' }"
+		/>
 		<!-- /mapview, /dashboard layouts -->
 		<div
 			v-if="
 				authStore.currentPath === 'mapview' ||
 				authStore.currentPath === 'dashboard'
 			"
-			class="app-content"
+			class="app-content navbar-offset"
 		>
 			<SideBar />
 			<div class="app-content-main">
@@ -342,12 +345,21 @@ onBeforeUnmount(() => {
 		}
 	}
 
+	.navbar-hidden {
+		display: none;
+	}
+
 	&-content {
 		width: 100vw;
 		max-width: 100vw;
 		height: calc(100vh - 60px);
 		height: calc(var(--vh) * 100 - 60px);
 		display: flex;
+
+		&.navbar-offset {
+			height: calc(100vh - 60px);
+			height: calc(var(--vh) * 100 - 60px);
+		}
 
 		&.full-height {
 			height: 100vh;
