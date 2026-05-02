@@ -30,6 +30,15 @@ WHERE dg.dashboard_id = d.id
   AND g.name IN ('public', 'taipei')
   AND g.is_personal IS FALSE;
 
+DELETE FROM public.components WHERE index IN (
+    'metrotaipei_reusable_cup',
+    'metrotaipei_eco_restaurant',
+    'metrotaipei_scooter_charging',
+    'metrotaipei_drinking_fountain',
+    'green_store_distribution',
+    'eco_hotel'
+);
+
 INSERT INTO public.components (id, index, name) VALUES
     (301, 'metrotaipei_reusable_cup', '雙北各區循環杯門市數量'),
     (304, 'metrotaipei_eco_restaurant', '雙北各區環保餐廳數量'),
@@ -37,8 +46,8 @@ INSERT INTO public.components (id, index, name) VALUES
     (305, 'metrotaipei_drinking_fountain', '飲水機與直飲臺分布'),
     (308, 'green_store_distribution', '綠色商店分布'),
     (500, 'eco_hotel', '環保旅宿')
-ON CONFLICT (id) DO UPDATE
-SET index = EXCLUDED.index,
+ON CONFLICT (index) DO UPDATE
+SET id = EXCLUDED.id,
     name = EXCLUDED.name;
 
 DO $$
