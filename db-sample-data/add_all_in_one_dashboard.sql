@@ -4,7 +4,7 @@ INSERT INTO public.dashboards (id, index, name, components, icon, updated_at, cr
 VALUES (
     403,
     'all-in-one',
-    'All in One',
+    '淨零生活',
     '{}',
     'dashboard',
     NOW(),
