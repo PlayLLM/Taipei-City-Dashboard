@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"TaipeiCityDashboardBE/logs"
+
 	"github.com/tmc/langchaingo/llms"
 )
 
@@ -305,6 +306,7 @@ func (p *streamProcessor) processChunk(ctx context.Context, chunk *TWCCStreamRes
 
 	if p.isToolCalling {
 		p.accumulateTools(chunk)
+		// 工具呼叫期間不傳送 chunk 到前端，避免前端誤判
 	} else {
 		p.flushBuffer(ctx)
 		p.streamingFunc(ctx, []byte(rawLine))

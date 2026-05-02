@@ -166,40 +166,6 @@ watch(
 						<div v-if="chat.content" class="message--bubble">
 							<p>{{ chat.content }}</p>
 						</div>
-						<!-- 表格區 -->
-						<div
-							v-if="chat.relations"
-							v-horizontal-wheel
-							class="relation-area"
-						>
-							<table class="relation-table">
-								<thead>
-									<tr>
-										<th>排名</th>
-										<th>城市名</th>
-										<th>組件名</th>
-										<th>關聯性</th>
-									</tr>
-								</thead>
-								<tbody>
-									<tr
-										v-for="(item, index) in chat.relations"
-										:key="index"
-									>
-										<td>{{ index + 1 }}</td>
-										<td>
-											{{
-												item.city === "taipei"
-													? "臺北"
-													: "雙北"
-											}}
-										</td>
-										<td>{{ item.name }}</td>
-										<td>{{ item.score }}</td>
-									</tr>
-								</tbody>
-							</table>
-						</div>
 						<div
 							v-if="chat.button"
 							v-horizontal-wheel
