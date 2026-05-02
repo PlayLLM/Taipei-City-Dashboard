@@ -5,6 +5,7 @@ import (
 	"TaipeiCityDashboardBE/app/util"
 	"TaipeiCityDashboardBE/logs"
 	"context"
+	"encoding/json"
 	"fmt"
 	"html"
 	"net/http"
@@ -86,6 +87,8 @@ func ChatWithTWCC(c *gin.Context) {
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("Connection", "keep-alive")
 
+		var toolResults []map[string]string
+
 		// Add Streaming Callback
 		options = append(options, llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
 			if string(chunk) == ": heartbeat\n\n" {
@@ -99,7 +102,7 @@ func ChatWithTWCC(c *gin.Context) {
 			return nil
 		}))
 
-		_, err := ai.ChatWithTWCC(c.Request.Context(), req, options...)
+		logEntry, err := ai.ChatWithTWCC(c.Request.Context(), req, options...)
 		if err != nil {
 			if !c.Writer.Written() {
 				c.JSON(http.StatusInternalServerError, gin.H{
@@ -108,7 +111,26 @@ func ChatWithTWCC(c *gin.Context) {
 					"message":    err.Error(),
 				})
 			}
+			return
 		}
+
+		// Streaming 結束後回傳工具結果
+		if logEntry != nil && logEntry.ToolUsed && len(logEntry.ToolResults) > 0 {
+			var results []map[string]string
+			if err := json.Unmarshal([]byte(logEntry.ToolResults), &results); err == nil {
+				toolResults = results
+			}
+		}
+
+		// 回傳最終訊息包含工具結果
+		finalMessage := map[string]interface{}{
+			"session": logEntry.SessionID,
+			"tool_results": toolResults,
+		}
+		finalJSON, _ := json.Marshal(finalMessage)
+		c.Writer.Write([]byte("data: " + string(finalJSON) + "\n\n"))
+		c.Writer.Write([]byte("data: [DONE]\n\n"))
+		c.Writer.Flush()
 		return
 	}
 

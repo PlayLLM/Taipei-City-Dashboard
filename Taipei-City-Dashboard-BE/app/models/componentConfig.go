@@ -2,13 +2,19 @@
 package models
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"net/url"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
+
+	"TaipeiCityDashboardBE/app/services/ai/providers/twcc"
+	"TaipeiCityDashboardBE/global"
 
 	"github.com/lib/pq"
 	"gorm.io/gorm"
@@ -80,6 +86,8 @@ type CityComponentScore struct {
 	Name           string  `json:"name"`
 	City           string  `json:"city"`
 	Score          float64 `json:"score"`
+	VectorScore    float64 `json:"vector_score,omitempty"`
+	RerankScore    float64 `json:"rerank_score,omitempty"`
 	Source         string  `json:"source,omitempty"`
 	ShortDesc      string  `json:"short_desc,omitempty"`
 	LongDesc       string  `json:"long_desc,omitempty"`
@@ -266,74 +274,27 @@ func GetComponentByIDAll(id int) (component []CityComponent, err error) {
 }
 
 func GetComponentByQueryVector(queryString string, limit int, scoreThreshold float64) (component []CityComponentScore, err error) {
+	if limit <= 0 {
+		return component, nil
+	}
+
 	vector, err := GenVector(queryString)
 	if err != nil {
 		return component, err
 	}
 
-	result, err := queryQdrant(vector, limit, scoreThreshold)
+	finalLimit := limit
+	retrievalLimit := getQdrantRetrievalLimit(finalLimit)
+
+	result, err := queryQdrant(vector, retrievalLimit, scoreThreshold)
 	if err != nil {
 		return component, err
 	}
 
 	points := result.Result.Points
 
-	var queryOutput []map[string]interface{}
 	for _, p := range points {
-		payload := p.Payload
-		roundedScore := math.Round(p.Score*10000) / 10000
-
-		entry := map[string]interface{}{
-			"id":    payload["id"],
-			"index": payload["index"],
-			"name":  payload["name"],
-			"city":  payload["city"],
-			"score": roundedScore,
-		}
-
-		queryOutput = append(queryOutput, entry)
-	}
-
-	for _, item := range queryOutput {
-		c := CityComponentScore{}
-
-		// Safe conversion for ID
-		if idVal, ok := item["id"]; ok {
-			switch v := idVal.(type) {
-			case float64:
-				c.ID = int64(v)
-			case string:
-				c.ID, _ = strconv.ParseInt(v, 10, 64)
-			case int:
-				c.ID = int64(v)
-			case int64:
-				c.ID = v
-			}
-		}
-
-		// Safe conversion for Index
-		if indexVal, ok := item["index"]; ok {
-			c.Index = fmt.Sprintf("%v", indexVal)
-		}
-
-		// Safe conversion for Name
-		if nameVal, ok := item["name"]; ok {
-			c.Name = fmt.Sprintf("%v", nameVal)
-		}
-
-		// Safe conversion for City
-		if cityVal, ok := item["city"]; ok {
-			c.City = fmt.Sprintf("%v", cityVal)
-		}
-
-		// Safe conversion for Score
-		if scoreVal, ok := item["score"]; ok {
-			if s, ok := scoreVal.(float64); ok {
-				c.Score = s
-			}
-		}
-
-		component = append(component, c)
+		component = append(component, qdrantPointToCityComponentScore(p))
 	}
 
 	for i := range component {
@@ -341,7 +302,142 @@ func GetComponentByQueryVector(queryString string, limit int, scoreThreshold flo
 		attachDashboardTarget(&component[i])
 	}
 
-	return component, nil
+	component = rerankComponents(queryString, component, finalLimit)
+	return limitComponents(component, finalLimit), nil
+}
+
+func getQdrantRetrievalLimit(finalLimit int) int {
+	retrievalLimit := global.TWCC.RerankTopK
+	if retrievalLimit <= 0 {
+		retrievalLimit = finalLimit
+	}
+	if retrievalLimit < finalLimit {
+		retrievalLimit = finalLimit
+	}
+	return retrievalLimit
+}
+
+func qdrantPointToCityComponentScore(point QdrantPoint) CityComponentScore {
+	payload := point.Payload
+	roundedScore := math.Round(point.Score*10000) / 10000
+
+	component := CityComponentScore{
+		Score:       roundedScore,
+		VectorScore: roundedScore,
+	}
+
+	if idVal, ok := payload["id"]; ok {
+		switch v := idVal.(type) {
+		case float64:
+			component.ID = int64(v)
+		case string:
+			component.ID, _ = strconv.ParseInt(v, 10, 64)
+		case int:
+			component.ID = int64(v)
+		case int64:
+			component.ID = v
+		}
+	}
+
+	if indexVal, ok := payload["index"]; ok {
+		component.Index = fmt.Sprintf("%v", indexVal)
+	}
+	if nameVal, ok := payload["name"]; ok {
+		component.Name = fmt.Sprintf("%v", nameVal)
+	}
+	if cityVal, ok := payload["city"]; ok {
+		component.City = fmt.Sprintf("%v", cityVal)
+	}
+
+	return component
+}
+
+func rerankComponents(queryString string, components []CityComponentScore, finalLimit int) []CityComponentScore {
+	if !global.TWCC.RerankEnabled || global.TWCC.RerankModel == "" || len(components) == 0 {
+		return components
+	}
+
+	documents := make([]string, 0, len(components))
+	for _, component := range components {
+		documents = append(documents, componentRerankDocument(component))
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(global.TWCC.RerankTimeout)*time.Second)
+	defer cancel()
+
+	client := twcc.New(global.TWCC.ApiKey, global.TWCC.ApiUrl, global.TWCC.RerankModel, global.TWCC.RerankTimeout)
+	results, err := callTWCCRerank(ctx, client, queryString, documents, finalLimit)
+	if err != nil {
+		log.Printf("TWCC rerank failed, fallback to Qdrant order: %v", err)
+		return components
+	}
+
+	reranked := make([]CityComponentScore, 0, len(results))
+	used := make(map[int]bool, len(results))
+	for _, result := range results {
+		if result.Index < 0 || result.Index >= len(components) {
+			continue
+		}
+		item := components[result.Index]
+		item.RerankScore = math.Round(result.Score*10000) / 10000
+		item.Score = item.RerankScore
+		reranked = append(reranked, item)
+		used[result.Index] = true
+	}
+
+	if len(reranked) == 0 {
+		return components
+	}
+	for i, item := range components {
+		if !used[i] {
+			reranked = append(reranked, item)
+		}
+	}
+
+	return reranked
+}
+
+func callTWCCRerank(ctx context.Context, client *twcc.TWCC, queryString string, documents []string, finalLimit int) ([]twcc.RerankResult, error) {
+	if shouldUseConversationRerank(global.TWCC.RerankModel) {
+		return client.RerankWithConversation(ctx, queryString, documents, finalLimit)
+	}
+
+	results, err := client.Rerank(ctx, queryString, documents, finalLimit)
+	if err == nil {
+		return results, nil
+	}
+
+	log.Printf("TWCC rerank API failed, trying conversation rerank: %v", err)
+	conversationClient := twcc.New(global.TWCC.ApiKey, global.TWCC.ApiUrl, global.TWCC.Model, global.TWCC.RerankTimeout)
+	conversationResults, conversationErr := conversationClient.RerankWithConversation(ctx, queryString, documents, finalLimit)
+	if conversationErr != nil {
+		return nil, fmt.Errorf("rerank API error: %v; conversation rerank error: %w", err, conversationErr)
+	}
+	return conversationResults, nil
+}
+
+func shouldUseConversationRerank(model string) bool {
+	model = strings.ToLower(model)
+	return strings.Contains(model, "chat") || strings.Contains(model, "llama")
+}
+
+func componentRerankDocument(component CityComponentScore) string {
+	parts := []string{
+		"名稱：" + component.Name,
+		"城市：" + component.City,
+		"資料來源：" + component.Source,
+		"簡述：" + component.ShortDesc,
+		"詳細說明：" + component.LongDesc,
+		"使用情境：" + component.UseCase,
+	}
+	return strings.Join(parts, "\n")
+}
+
+func limitComponents(components []CityComponentScore, limit int) []CityComponentScore {
+	if limit <= 0 || len(components) <= limit {
+		return components
+	}
+	return components[:limit]
 }
 
 func attachComponentDetails(component *CityComponentScore) {

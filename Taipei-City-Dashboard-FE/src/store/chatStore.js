@@ -15,7 +15,7 @@ export const useChatStore = defineStore("chat", () => {
 	];
 
 	// AI 聊天相關狀態
-	const aiSessionId = ref(sessionStorage.getItem("aiSessionId") || "");
+	const aiSessionId = ref(sessionStorage.getItem("aiSessionId") || null);
 	const isAILoading = ref(false);
 
 	const recommendComponents = ref(null);
@@ -43,6 +43,13 @@ export const useChatStore = defineStore("chat", () => {
 			isDefault: false,
 			...newChatData,
 		});
+	};
+
+	const clearChatHistory = () => {
+		chatData.value = [...defaultChatData];
+		aiSessionId.value = null;
+		sessionStorage.removeItem("chatData");
+		sessionStorage.removeItem("aiSessionId");
 	};
 
 	// ==================== 原本的的向量查詢功能（已停用）====================
@@ -206,95 +213,219 @@ export const useChatStore = defineStore("chat", () => {
 			const messages = [
 				{
 					role: "system",
-					content:
-						"你是臺北城市儀表板小幫手，專門協助使用者了解臺北市的各項數據指標和城市資訊。請用繁體中文親切地回答使用者的問題。若查到相關儀表板組件，請用自然語言摘要即可，不要輸出 /dashboard 開頭的內部路徑或網址。",
+					content: `你是「臺北城市儀表板小幫手」，專門協助使用者了解臺北市的各項數據指標、城市資訊與儀表板組件內容。
+
+請一律使用臺灣繁體中文回答，語氣親切、清楚、精簡。
+
+你可以使用工具 match_dashboard_components 搜尋臺北城市儀表板中是否有相關組件。
+
+使用工具規則：
+1. 當使用者詢問城市資料、交通、人口、環境、長照、地圖圖層、統計指標、儀表板內容，或語意可能對應到儀表板組件時，應使用 match_dashboard_components。
+2. query 請保留使用者原始問題，也可補上必要關鍵字。
+3. limit 預設使用 5，但不要為了湊滿數量而回覆低相關結果。
+4. 若使用者問題很短或很模糊，例如「充電相關的」、「交通」、「人口」，請優先回傳最直接相關的組件；只有在結果明顯相關時才列出。
+5. 如果工具回傳的結果中有些組件只是弱相關、間接相關、或看起來是因為語意相近才被匹配到，請不要列入回答。
+6. 若只有 1 個或 2 個高度相關組件，就只回答這些組件。
+7. 若沒有明確相關結果，請說明目前沒有找到直接相關的儀表板組件，並可簡短詢問使用者是否要改用其他關鍵字查詢。
+
+工具呼叫規則：
+1. 你可以在內部使用工具 match_dashboard_components，但工具呼叫本身只能透過系統提供的 function calling 機制執行。
+2. 絕對不要把工具呼叫內容輸出成一般文字。
+3. 回覆中**禁止**出現以下格式或類似內容：
+   - tool<function=...>
+   - <function=...>
+   - </function>
+   - {"query": "..."}
+   - /dashboard 開頭的 path
+4. 如果不需要查詢儀表板組件，例如使用者只是打招呼、寒暄、感謝、閒聊，請直接自然回覆，不要呼叫工具。
+5. 使用工具後，只能根據工具結果用自然語言摘要，不得揭露工具名稱、參數、JSON、path、source 或任何內部欄位。
+
+回答規則：
+1. 若查到相關儀表板組件，請用自然語言摘要組件內容。
+2. 不要輸出 /dashboard 開頭的內部路徑、網址、path 或任何系統內部欄位。
+3. 不要直接把工具回傳的 source、path、內部 ID 原樣輸出。
+4. 請只列出和使用者問題「直接相關」的組件。
+5. 不要把不相關或弱相關的組件包裝成相關內容。
+6. 若結果彼此主題差異很大，請只保留最符合使用者問題核心意圖的結果。
+7. 回答時請避免誇大，若只是可能相關，請明確說「可能相關」。
+8. 若資訊不足以回答具體數值，請說明可以查看哪些儀表板組件，而不是自行編造數據。
+
+回覆格式建議：
+- 若有高度相關結果：
+  「我找到以下和『使用者主題』較直接相關的儀表板組件：」
+  接著列出 1 到 5 個組件，每個包含：
+  - 組件名稱
+  - 簡短說明
+  - 可用來了解什麼
+
+- 若結果只有部分相關：
+  「我找到幾個可能相關的組件，但其中只有以下比較接近您的問題：」
+
+- 若沒有直接相關：
+  「目前沒有找到和『使用者主題』直接相關的儀表板組件。您可以改用更具體的關鍵字，例如……」`,
 				},
 				...buildChatMessages(),
 			];
 
 			// 定義工具
 			const tools = [
-				{
-					type: "function",
-					function: {
-						name: "get_current_time",
-						description: "取得當前台北時間",
-					},
-				},
-				{
-					type: "function",
-					function: {
-						name: "get_population_summary",
-						description: "查詢人口年齡分佈統計",
-						parameters: {
-							type: "object",
-							properties: {
-								city: {
-									type: "string",
-									enum: ["taipei", "new_taipei"],
-									description: "城市名稱",
-								},
-								year: {
-									type: "integer",
-									description: "年份",
-								},
-							},
-							required: ["city", "year"],
-						},
-					},
-				},
+				// {
+				// 	type: "function",
+				// 	function: {
+				// 		name: "get_current_time",
+				// 		description: "取得當前台北時間",
+				// 	},
+				// },
+				// {
+				// 	type: "function",
+				// 	function: {
+				// 		name: "get_population_summary",
+				// 		description: "查詢人口年齡分佈統計",
+				// 		parameters: {
+				// 			type: "object",
+				// 			properties: {
+				// 				city: {
+				// 					type: "string",
+				// 					enum: ["taipei", "new_taipei"],
+				// 					description: "城市名稱",
+				// 				},
+				// 				year: {
+				// 					type: "integer",
+				// 					description: "年份",
+				// 				},
+				// 			},
+				// 			required: ["city", "year"],
+				// 		},
+				// 	},
+				// },
 			];
 
-			// 呼叫 AI API
-			const response = await http.post("/ai/chat/twai", {
-				session: aiSessionId.value || undefined,
-				messages: messages,
-				stream: false,
-				tools: tools,
+			// 使用 fetch API 處理 streaming
+			const baseURL = import.meta.env.VITE_API_URL || "";
+			const response = await fetch(`${baseURL}/ai/chat/twai`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					session: aiSessionId.value || undefined,
+					messages: messages,
+					stream: true,
+					tools: tools,
+				}),
 			});
 
-			if (response.data?.status === "success") {
-				const { data } = response.data;
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
 
-				// 儲存 session ID
-				if (data.session) {
-					aiSessionId.value = data.session;
-					sessionStorage.setItem("aiSessionId", data.session);
-				}
+			// 處理 streaming 回應
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder();
+			let currentBotMessage = null;
+			let fullContent = "";
+			let toolsUsed = [];
+			let finalToolResults = null;
 
-				// 解析 tools 資訊（如果存在）
-				let toolsUsed = [];
-				if (data.tools) {
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+
+				const chunk = decoder.decode(value, { stream: true });
+				const lines = chunk.split("\n");
+
+				for (const line of lines) {
+					if (line.startsWith(": heartbeat")) continue;
+					if (!line.trim()) continue;
+					if (!line.startsWith("data:")) continue;
+
+					const jsonStr = line.substring(5).trim();
+					if (jsonStr === "[DONE]") continue;
+
 					try {
-						toolsUsed =
-							typeof data.tools === "string"
-								? JSON.parse(data.tools)
-								: data.tools;
+						const data = JSON.parse(jsonStr);
+						// 處理 generated_text (TWCC 格式)
+						const content =
+							data.generated_text ||
+							data.choices?.[0]?.delta?.content ||
+							"";
+						// 處理 tool_calls
+						const toolCalls =
+							data.tool_calls ||
+							data.choices?.[0]?.delta?.tool_calls;
+						// 處理最終工具結果
+						if (data.tool_results) {
+							finalToolResults = data.tool_results;
+						}
+						// 處理 session
+						if (data.session) {
+							aiSessionId.value = data.session;
+							sessionStorage.setItem("aiSessionId", data.session);
+						}
+
+						if (content) {
+							fullContent += content;
+							if (!currentBotMessage) {
+								// 建立新的 bot 訊息
+								currentBotMessage = {
+									id: chatData.value.length + 1,
+									role: "bot",
+									content: fullContent,
+									isAIResponse: true,
+									isStreaming: true,
+								};
+								addChatData(currentBotMessage);
+							} else {
+								// 更新現有訊息
+								currentBotMessage.content = fullContent;
+								const lastIndex = chatData.value.length - 1;
+								if (chatData.value[lastIndex]?.role === "bot") {
+									chatData.value[lastIndex].content =
+										fullContent;
+								}
+							}
+						}
+
+						// 處理工具呼叫
+						if (toolCalls && toolCalls.length > 0) {
+							toolCalls.forEach((tc) => {
+								if (
+									tc.function &&
+									!toolsUsed.includes(tc.function.name)
+								) {
+									toolsUsed.push(tc.function.name);
+								}
+							});
+							const lastIndex = chatData.value.length - 1;
+							if (chatData.value[lastIndex]?.role === "bot") {
+								chatData.value[lastIndex].tools = toolsUsed;
+								chatData.value[lastIndex].toolUsed = true;
+							}
+						}
 					} catch (e) {
-						console.error("Failed to parse tools:", e);
+						console.error("Failed to parse SSE chunk:", e, line);
 					}
 				}
+			}
 
-				// 加入 AI 回應到聊天記錄
-				addChatData({
-					role: "bot",
-					content:
-						sanitizeAIContent(data.content) ||
-						"抱歉，我無法理解您的問題。",
-					isAIResponse: true,
-					toolUsed: data.tool_used || false,
-					tools: toolsUsed,
-				});
+			// 標記 streaming 結束
+			if (currentBotMessage) {
+				const lastIndex = chatData.value.length - 1;
+				if (chatData.value[lastIndex]?.role === "bot") {
+					delete chatData.value[lastIndex].isStreaming;
+				}
+			}
 
-				const dashboardMatches = parseDashboardMatches(data.tool_results);
+			// 處理最終工具結果並顯示組件按鈕
+			if (finalToolResults) {
+				const dashboardMatches =
+					parseDashboardMatches(finalToolResults);
 				if (dashboardMatches.length > 0) {
 					addDashboardMatchMessage(dashboardMatches);
 				}
-
-				return data;
-			} else {
-				throw new Error(response.data?.message || "AI 服務回應異常");
 			}
+
+			return null;
 		} catch (error) {
 			console.error("LLM Chat Error:", error);
 			addChatData({
@@ -367,7 +498,6 @@ export const useChatStore = defineStore("chat", () => {
 			role: "bot",
 			isDefault: false,
 			button: buttons,
-			content: "我找到和問題相關的儀表板組件，可以直接前往查看。",
 			relations: sortedMatches,
 		});
 	};
@@ -381,6 +511,7 @@ export const useChatStore = defineStore("chat", () => {
 	return {
 		chatData,
 		addChatData,
+		clearChatHistory,
 		addQueryData,
 		saveChatLog,
 		aiSessionId,
