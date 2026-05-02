@@ -292,6 +292,7 @@ onBeforeUnmount(() => {
 			<p>下次更新：{{ formattedTimeToUpdate }}</p>
 		</div>
 		<div
+			v-if="authStore.currentPath !== 'explore'"
 			class="chatbot-container"
 			:class="{
 				'chatbot-container--sidebar': chatDisplayMode === 'sidebar',
