@@ -113,6 +113,48 @@ function shouldDisable(map_config) {
 	}
 }
 
+function getComponentCityList(componentIndex) {
+	const cities = [
+		...new Set(
+			contentStore.cityDashboard.components
+				?.filter((item) => item.index === componentIndex)
+				.map((item) => item.city) || []
+		),
+	];
+
+	const preferredOrder = ["metrotaipei", "taipei", "newtaipei"];
+	cities.sort((a, b) => {
+		const aIndex = preferredOrder.indexOf(a);
+		const bIndex = preferredOrder.indexOf(b);
+		return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
+	});
+
+	return contentStore.cityManager.getCities(cities);
+}
+
+function hasComponentCityOptions(componentIndex) {
+	return getComponentCityList(componentIndex).length > 1;
+}
+
+function changeDashboardComponentCity(item, city) {
+	const selectedData = contentStore.cityDashboard.components.find((data) => {
+		return data.index === item.index && data.city === city;
+	});
+
+	if (!selectedData) return;
+
+	const componentIndex = contentStore.currentDashboard.components.findIndex(
+		(component) => component.id === selectedData.id
+	);
+
+	if (componentIndex < 0) return;
+
+	mapStore.clearByParamFilter(item.map_config);
+	mapStore.turnOffMapLayerVisibility(item.map_config);
+	mapStore.addToMapLayerList(selectedData.map_config);
+	contentStore.setComponentData(componentIndex, selectedData);
+}
+
 // 開啟主題圖層時觸發GA自訂事件
 function popularThematicLayerGA(map_config) {
 	if (map_config[0].city && map_config[0].title) {
@@ -263,30 +305,9 @@ function popularBasicLayerGA(map_config) {
           :info-btn="true"
           :active-city="item.city"
           :select-btn="true"
-          :select-btn-disabled="
-            contentStore.cityManager.getSelectList(
-              contentStore.currentDashboard?.city,
-            ).length === 1 ||
-              contentStore.currentDashboardExcluded.components.filter(
-                (data) => data.index === item.index,
-              ).length === 0
-          "
-          :select-btn-list="
-            contentStore.currentDashboard?.city
-              ? contentStore.cityManager.getSelectList(
-                contentStore.currentDashboard?.city,
-              )
-              : contentStore.cityManager.getCities(
-                contentStore.cityManager.activeCities,
-              )
-          "
-          :city-tag="
-            contentStore.currentDashboard?.city
-              ? contentStore.cityManager.getTagList(
-                contentStore.currentDashboard?.city,
-              )
-              : contentStore.cityManager.getTagList(item.city)
-          "
+          :select-btn-disabled="!hasComponentCityOptions(item.index)"
+          :select-btn-list="getComponentCityList(item.index)"
+          :city-tag="contentStore.cityManager.getTagList(item.city)"
           :toggle-disable="shouldDisable(item.map_config)"
           :toggle-on="toggleOn.hasMap[arrayIdx]"
           @info="
@@ -331,41 +352,7 @@ function popularBasicLayerGA(map_config) {
               mapStore.flyToLocation(location);
             }
           "
-          @change-city="
-            (city) => {
-              const selectedData =
-                contentStore.cityDashboard.components.find(
-                  (data) => {
-                    if (
-                      data.index === item.index &&
-                      data.city === city
-                    ) {
-                      return data;
-                    }
-                  },
-                );
-
-              const componentIndex =
-                contentStore.currentDashboard.components.findIndex(
-                  (item) => item.id === selectedData.id,
-                );
-
-              if (selectedData) {
-                mapStore.clearByParamFilter(item.map_config);
-                mapStore.turnOffMapLayerVisibility(
-                  item.map_config,
-                );
-                mapStore.addToMapLayerList(
-                  selectedData.map_config,
-                );
-
-                contentStore.setComponentData(
-                  componentIndex,
-                  selectedData,
-                );
-              }
-            }
-          "
+          @change-city="(city) => changeDashboardComponentCity(item, city)"
         />
         <h2 v-if="contentStore.mapLayers.length > 0">
           基本圖層
