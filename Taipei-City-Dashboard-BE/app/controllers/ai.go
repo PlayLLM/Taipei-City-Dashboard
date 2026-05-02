@@ -3,6 +3,7 @@ package controllers
 import (
 	"TaipeiCityDashboardBE/app/services/ai"
 	"TaipeiCityDashboardBE/app/util"
+	"TaipeiCityDashboardBE/logs"
 	"context"
 	"fmt"
 	"html"
@@ -121,6 +122,11 @@ func ChatWithTWCC(c *gin.Context) {
 		})
 		return
 	}
+
+	logs.FInfo("LLM Response Content: %s", logEntry.Answer)
+	logs.FInfo("LLM Tool Used: %v", logEntry.ToolUsed)
+	logs.FInfo("LLM Tools: %s", logEntry.Tools)
+	logs.FInfo("LLM Tool Results: %s", logEntry.ToolResults)
 
 	c.JSON(http.StatusOK, gin.H{
 		"status": "success",
@@ -254,7 +260,7 @@ func defaultAITools() []llms.Tool {
 			Type: "function",
 			Function: &llms.FunctionDefinition{
 				Name:        "match_dashboard_components",
-				Description: "判斷使用者問題是否與臺北城市儀表板現有組件內容相關。若相關，回傳可導向 dashboard component 的 matches 與 path；若不相關，回傳 matched=false。使用者詢問城市資料、交通、人口、環境、長照、地圖圖層、統計指標、儀表板內容時可使用。",
+				Description: "判斷使用者問題是否與臺北城市儀表板現有組件內容相關。若相關，回傳可導向 dashboard component 的 matches、path、source、short_desc、long_desc、use_case；若不相關，回傳 matched=false。使用者詢問城市資料、交通、人口、環境、長照、地圖圖層、統計指標、儀表板內容時可使用。",
 				Parameters: map[string]interface{}{
 					"type": "object",
 					"properties": map[string]interface{}{

@@ -80,6 +80,10 @@ type CityComponentScore struct {
 	Name           string  `json:"name"`
 	City           string  `json:"city"`
 	Score          float64 `json:"score"`
+	Source         string  `json:"source,omitempty"`
+	ShortDesc      string  `json:"short_desc,omitempty"`
+	LongDesc       string  `json:"long_desc,omitempty"`
+	UseCase        string  `json:"use_case,omitempty"`
 	DashboardIndex string  `json:"dashboard_index,omitempty"`
 	DashboardName  string  `json:"dashboard_name,omitempty"`
 	Path           string  `json:"path,omitempty"`
@@ -333,10 +337,44 @@ func GetComponentByQueryVector(queryString string, limit int, scoreThreshold flo
 	}
 
 	for i := range component {
+		attachComponentDetails(&component[i])
 		attachDashboardTarget(&component[i])
 	}
 
 	return component, nil
+}
+
+func attachComponentDetails(component *CityComponentScore) {
+	if component == nil || component.ID == 0 {
+		return
+	}
+
+	type componentDetails struct {
+		Source    string `gorm:"column:source"`
+		ShortDesc string `gorm:"column:short_desc"`
+		LongDesc  string `gorm:"column:long_desc"`
+		UseCase   string `gorm:"column:use_case"`
+	}
+
+	var details componentDetails
+	query := DBManager.Table("query_charts as qc").
+		Select("qc.source, qc.short_desc, qc.long_desc, qc.use_case").
+		Joins("INNER JOIN components c ON qc.index = c.index").
+		Where("c.id = ?", component.ID)
+
+	if component.City != "" {
+		query = query.Where("qc.city = ?", component.City)
+	}
+
+	err := query.Limit(1).Scan(&details).Error
+	if err != nil {
+		return
+	}
+
+	component.Source = details.Source
+	component.ShortDesc = details.ShortDesc
+	component.LongDesc = details.LongDesc
+	component.UseCase = details.UseCase
 }
 
 func attachDashboardTarget(component *CityComponentScore) {
@@ -352,12 +390,13 @@ func attachDashboardTarget(component *CityComponentScore) {
 	type dashboardTarget struct {
 		Index string `gorm:"column:index"`
 		Name  string `gorm:"column:name"`
+		City  string `gorm:"column:city"`
 	}
 
 	var target dashboardTarget
 	order := fmt.Sprintf("CASE WHEN groups.name = '%s' THEN 0 WHEN groups.name = 'public' THEN 1 ELSE 2 END", city)
 	err := DBManager.Table("dashboards").
-		Select("dashboards.index, dashboards.name").
+		Select("dashboards.index, dashboards.name, groups.name AS city").
 		Joins("JOIN dashboard_groups ON dashboards.id = dashboard_groups.dashboard_id").
 		Joins("JOIN groups ON dashboard_groups.group_id = groups.id").
 		Where("dashboards.components @> ARRAY[?]::integer[]", component.ID).
@@ -372,6 +411,9 @@ func attachDashboardTarget(component *CityComponentScore) {
 
 	component.DashboardIndex = target.Index
 	component.DashboardName = target.Name
+	if target.City == "taipei" || target.City == "metrotaipei" {
+		city = target.City
+	}
 	component.Path = fmt.Sprintf(
 		"/dashboard?index=%s&city=%s&component=%s",
 		url.QueryEscape(target.Index),
