@@ -112,6 +112,11 @@ dockerCp(
 	"/tmp/add_scooter_charging_data.sql",
 );
 dockerCp(
+	"db-sample-data/add_used_clothing_box_data.sql",
+	config.dataContainer,
+	"/tmp/add_used_clothing_box_data.sql",
+);
+dockerCp(
 	"data/臺北市公共場所飲水機資訊.csv",
 	config.dataContainer,
 	"/tmp/drinking_fountain_tpe.csv",
@@ -134,12 +139,14 @@ psql(config.dataContainer, config.dashboardDb, "/tmp/add_eco_hotel_data.sql");
 psql(config.dataContainer, config.dashboardDb, "/tmp/add_eco_restaurant_data.sql");
 psql(config.dataContainer, config.dashboardDb, "/tmp/add_scooter_charging_data.sql");
 psql(config.dataContainer, config.dashboardDb, "/tmp/add_drinking_fountain_data.sql");
+psql(config.dataContainer, config.dashboardDb, "/tmp/add_used_clothing_box_data.sql");
 
 console.log("產生 GeoJSON 檔案...");
 run("node", ["scripts/阿肥/generate_recycling_station_geojson.mjs"]);
 run("node", ["scripts/阿肥/generate_reusable_cup_geojson.mjs"]);
 run("node", ["scripts/阿肥/generate_scooter_charging_geojson.mjs"]);
 run("node", ["scripts/阿肥/generate_drinking_fountain_geojson.mjs"]);
+run("node", ["scripts/阿肥/generate_used_clothing_box_geojson.mjs"]);
 
 console.log("複製 dashboardmanager 組件與修復 SQL...");
 const managerSqlFiles = [
@@ -150,6 +157,7 @@ const managerSqlFiles = [
 	"add_eco_restaurant_component.sql",
 	"add_scooter_charging_component.sql",
 	"add_drinking_fountain_component.sql",
+	"add_used_clothing_box_component.sql",
 	"add_circular_economy_dashboard.sql",
 	"repair_dashboardmanager_consistency.sql",
 	"audit_dashboardmanager_integrity.sql",
