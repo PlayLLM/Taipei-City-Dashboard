@@ -19,6 +19,11 @@ SET color = EXCLUDED.color,
     types = EXCLUDED.types,
     unit = EXCLUDED.unit;
 
+-- 2. 更新地圖屬性配置 (增加行政區屬性以支援連動)
+UPDATE public.component_maps
+SET property = '[{"key":"brand","name":"品牌"},{"key":"store_name","name":"門市名稱"},{"key":"address","name":"地址"},{"key":"phone","name":"電話"},{"key":"city","name":"城市"},{"key":"district","name":"行政區"}]'::json
+WHERE index = 'reusable_cup_store_metrotaipei';
+
 -- 2. 修正查詢邏輯 (改為 two_d 模式)
 DELETE FROM public.query_charts
 WHERE index = 'metrotaipei_reusable_cup'

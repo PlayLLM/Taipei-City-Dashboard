@@ -27,9 +27,8 @@ node scripts/apply_dashboardmanager_consistency_repairs.mjs
 
 最後一支 script 會補上 base seed 以外的資料處理流程：
 
-- 匯入循環杯行政區統計資料。
-- 匯入資源回收站資料。
-- 產生資源回收站 GeoJSON。
+- 匯入循環杯、資源回收站、環保餐廳、環保旅宿等行政區統計與門市資料。
+- 產生資源回收站與循環杯 GeoJSON。
 - 建立或修復交通分析、循環經濟、氣候環境相關 dashboard 與 component。
 - 清理不應保留在 seed 內的 demo dashboard 與重複 roles。
 - 檢查 dashboards、components、query_charts、component_maps 的關聯一致性。

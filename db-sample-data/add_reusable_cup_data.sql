@@ -75,44 +75,51 @@ CREATE TABLE public.reusable_cup_stores (
 -- Data for Name: reusable_cup_stats; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('中山區', 116, '臺北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('中正區', 76, '臺北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('信義區', 77, '臺北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('內湖區', 110, '臺北市');
+TRUNCATE public.reusable_cup_stats;
+TRUNCATE public.reusable_cup_stores;
+
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('中山區', 111, '臺北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('中正區', 74, '臺北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('信義區', 76, '臺北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('內湖區', 104, '臺北市');
 INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('北投區', 50, '臺北市');
 INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('南港區', 41, '臺北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('士林區', 86, '臺北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('大同區', 28, '臺北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('大安區', 108, '臺北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('文山區', 53, '臺北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('松山區', 62, '臺北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('萬華區', 41, '臺北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('三峽區', 25, '新北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('士林區', 83, '臺北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('大同區', 26, '臺北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('大安區', 101, '臺北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('文山區', 50, '臺北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('松山區', 61, '臺北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('萬華區', 40, '臺北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('三峽區', 23, '新北市');
 INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('三芝區', 6, '新北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('三重區', 91, '新北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('中和區', 123, '新北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('三重區', 87, '新北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('中和區', 115, '新北市');
 INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('五股區', 25, '新北市');
 INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('八里區', 12, '新北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('土城區', 42, '新北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('新店區', 79, '新北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('新莊區', 95, '新北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('板橋區', 127, '新北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('林口區', 38, '新北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('土城區', 41, '新北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('新店區', 78, '新北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('新莊區', 94, '新北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('板橋區', 121, '新北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('林口區', 37, '新北市');
 INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('樹林區', 40, '新北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('永和區', 54, '新北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('永和區', 52, '新北市');
 INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('汐止區', 53, '新北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('泰山區', 22, '新北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('淡水區', 57, '新北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('泰山區', 21, '新北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('淡水區', 56, '新北市');
 INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('深坑區', 6, '新北市');
 INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('烏來區', 1, '新北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('瑞芳區', 5, '新北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('瑞芳區', 4, '新北市');
 INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('石碇區', 4, '新北市');
 INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('石門區', 1, '新北市');
 INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('萬里區', 3, '新北市');
-INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('蘆洲區', 45, '新北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('蘆洲區', 42, '新北市');
 INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('貢寮區', 3, '新北市');
 INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('金山區', 3, '新北市');
 INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('鶯歌區', 26, '新北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('坪林區', 0, '新北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('平溪區', 0, '新北市');
+INSERT INTO public.reusable_cup_stats (district, count, city) VALUES ('雙溪區', 0, '新北市');
+
 
 
 --
@@ -1898,7 +1905,7 @@ INSERT INTO public.reusable_cup_stores (brand, city, store_name, address, phone,
 
 -- ── 更新 wkb_geometry 欄位（由 lng/lat 計算）────────────────────────────────
 UPDATE public.reusable_cup_stores
-SET wkb_geometry = ST_SetSRID(ST_MakePoint(lng, lat), 4326)
+SET wkb_geometry = public.ST_SetSRID(public.ST_MakePoint(lng, lat), 4326)
 WHERE lng IS NOT NULL AND lat IS NOT NULL;
 
 -- ── 驗證 ──────────────────────────────────────────────────────────────────────
