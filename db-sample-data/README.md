@@ -9,7 +9,7 @@
 ```bash
 cd docker
 docker-compose -f docker-compose-db.yaml up -d
-docker-compose -f docker-compose-init.yaml up -d
+docker compose -f docker-compose-init.yaml up --abort-on-container-exit
 docker-compose up -d
 cd ..
 node scripts/apply_dashboardmanager_consistency_repairs.mjs
