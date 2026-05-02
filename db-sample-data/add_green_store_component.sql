@@ -1,0 +1,290 @@
+-- 新增「綠色商店分布」組件到 dashboardmanager 資料庫。
+--
+-- 建議執行方式：
+--   node scripts/apply_dashboardmanager_consistency_repairs.mjs
+--
+-- 本組件以 SQL 新增 components、component_charts 與 query_charts。
+-- 直接執行 SQL 後，必須重建 Qdrant，LLM／向量搜尋才會查到新的組件內容。
+--
+-- 前置條件：
+--   1. 已在 dashboard 資料庫執行 db-sample-data/add_green_store_data.sql
+--   2. public.green_store_tpe 與 public.green_store_new_tpe 已存在
+--
+-- 手動執行方式：
+--   docker cp db-sample-data/add_green_store_component.sql postgres-manager:/tmp/add_green_store_component.sql
+--   docker exec postgres-manager psql -U postgres -d dashboardmanager -f /tmp/add_green_store_component.sql
+--
+-- 圖表說明：
+--   1. HeatmapChart 使用 x_axis=行政區、y_axis=通路品牌、data=店數。
+--   2. DistrictChart 會彙總同一行政區所有 y_axis 的店數，並在 tooltip 顯示品牌拆分。
+
+BEGIN;
+
+INSERT INTO public.dashboards (id, index, name, components, icon, updated_at, created_at)
+VALUES (
+    401,
+    'climate-environment',
+    '氣候環境',
+    '{}',
+    'eco',
+    NOW(),
+    NOW()
+)
+ON CONFLICT (index) DO UPDATE
+SET name = EXCLUDED.name,
+    icon = EXCLUDED.icon,
+    updated_at = NOW();
+
+INSERT INTO public.dashboard_groups (dashboard_id, group_id)
+SELECT d.id, g.id
+FROM public.dashboards d
+JOIN public.groups g ON g.name IN ('public', 'taipei', 'metrotaipei') AND g.is_personal IS FALSE
+WHERE d.index = 'climate-environment'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.components (id, index, name)
+VALUES (305, 'green_store_distribution', '綠色商店分布')
+ON CONFLICT (id) DO UPDATE
+SET index = EXCLUDED.index,
+    name = EXCLUDED.name;
+
+INSERT INTO public.component_charts (index, color, types, unit)
+VALUES (
+    'green_store_distribution',
+    ARRAY['#A83F3F', '#C66D2D', '#3E70A8'],
+    ARRAY['HeatmapChart', 'DistrictChart'],
+    '家'
+)
+ON CONFLICT (index) DO UPDATE
+SET color = EXCLUDED.color,
+    types = EXCLUDED.types,
+    unit = EXCLUDED.unit;
+
+DELETE FROM public.query_charts
+WHERE index = 'green_store_distribution'
+  AND city IN ('taipei', 'metrotaipei');
+
+INSERT INTO public.query_charts (
+    index,
+    history_config,
+    map_config_ids,
+    map_filter,
+    time_from,
+    time_to,
+    update_freq,
+    update_freq_unit,
+    source,
+    short_desc,
+    long_desc,
+    use_case,
+    links,
+    contributors,
+    created_at,
+    updated_at,
+    query_type,
+    query_chart,
+    query_history,
+    city
+)
+VALUES
+(
+    'green_store_distribution',
+    NULL,
+    '{}',
+    NULL,
+    'static',
+    NULL,
+    1,
+    'month',
+    '環境部',
+    '顯示臺北市各行政區綠色商店數量與通路分類分布。',
+    '此圖表彙整臺北市綠色商店資料，以行政區與通路分類統計店數。熱力圖呈現各行政區不同通路分類的分布，行政區圖呈現各區綠色商店總量。',
+    '可用於了解臺北市綠色消費據點分布，作為環境教育、綠色採購推廣與服務可近性分析參考。',
+    '{https://greenliving.epa.gov.tw/}',
+    '{doit}',
+    NOW(),
+    NOW(),
+    'three_d',
+    'WITH category_order(category, sort_order) AS (
+        VALUES
+            (''其他'', 1),
+            (''五金居家'', 2),
+            (''美妝生活'', 3),
+            (''交通相關'', 4),
+            (''量販/超市'', 5),
+            (''通訊服務'', 6),
+            (''3C/家電'', 7),
+            (''便利商店'', 8)
+     ),
+     district_order(district, sort_order) AS (
+        VALUES
+            (''北投區'', 1),
+            (''士林區'', 2),
+            (''內湖區'', 3),
+            (''南港區'', 4),
+            (''松山區'', 5),
+            (''信義區'', 6),
+            (''中山區'', 7),
+            (''大同區'', 8),
+            (''中正區'', 9),
+            (''萬華區'', 10),
+            (''大安區'', 11),
+            (''文山區'', 12)
+     ),
+     stores AS (
+        SELECT
+            district,
+            CASE
+                WHEN name ~* ''^(7-?11|7－11|7-ELEVEN|統一超商|OPEN|全家|萊爾富|OK|來來超商)'' THEN ''便利商店''
+                WHEN name ~* ''(全國電子|燦坤|大同3C|大同綜合訊電|象印|台象|家電|電器)'' THEN ''3C/家電''
+                WHEN name ~* ''(中華電信|遠傳|台灣大哥大|臺灣大哥大|台灣之星|亞太電信|神腦)'' THEN ''通訊服務''
+                WHEN name ~* ''(全聯|家樂福|大潤發|愛買|頂好|Wellcome|棉花田|聖德科斯|超市|量販)'' THEN ''量販/超市''
+                WHEN name ~* ''(汽車|TOYOTA|Toyota|國都|固德|鴻源|和泰|加油站|機車|交通)'' THEN ''交通相關''
+                WHEN name ~* ''(寶雅|屈臣氏|康是美|小三美日|美華泰|美妝|生活百貨)'' THEN ''美妝生活''
+                WHEN name ~* ''(小北百貨|特力屋|HOLA|IKEA|宜家|五金|居家)'' THEN ''五金居家''
+                ELSE ''其他''
+            END AS category
+        FROM public.green_store_tpe
+     ),
+     counts AS (
+        SELECT district, category, COUNT(*)::int AS store_count
+        FROM stores
+        GROUP BY district, category
+     )
+     SELECT
+        d.district AS x_axis,
+        co.category AS y_axis,
+        COALESCE(cnt.store_count, 0)::int AS data
+     FROM category_order co
+     CROSS JOIN district_order d
+     LEFT JOIN counts cnt ON cnt.district = d.district AND cnt.category = co.category
+     ORDER BY co.sort_order, d.sort_order',
+    NULL,
+    'taipei'
+),
+(
+    'green_store_distribution',
+    NULL,
+    '{}',
+    NULL,
+    'static',
+    NULL,
+    1,
+    'month',
+    '環境部',
+    '顯示雙北各行政區綠色商店數量與通路分類分布。',
+    '此圖表彙整臺北市與新北市綠色商店資料，以行政區與通路分類統計店數。熱力圖呈現各行政區不同通路分類的分布，行政區圖呈現各區綠色商店總量。',
+    '可用於比較雙北綠色消費據點分布，作為環境教育、綠色採購推廣與服務可近性分析參考。',
+    '{https://greenliving.epa.gov.tw/}',
+    '{doit,ntpc}',
+    NOW(),
+    NOW(),
+    'three_d',
+    'WITH category_order(category, sort_order) AS (
+        VALUES
+            (''其他'', 1),
+            (''五金居家'', 2),
+            (''美妝生活'', 3),
+            (''交通相關'', 4),
+            (''量販/超市'', 5),
+            (''通訊服務'', 6),
+            (''3C/家電'', 7),
+            (''便利商店'', 8)
+     ),
+     district_order(district, sort_order) AS (
+        VALUES
+            (''北投區'', 1),
+            (''士林區'', 2),
+            (''內湖區'', 3),
+            (''南港區'', 4),
+            (''松山區'', 5),
+            (''信義區'', 6),
+            (''中山區'', 7),
+            (''大同區'', 8),
+            (''中正區'', 9),
+            (''萬華區'', 10),
+            (''大安區'', 11),
+            (''文山區'', 12),
+            (''新莊區'', 13),
+            (''淡水區'', 14),
+            (''汐止區'', 15),
+            (''板橋區'', 16),
+            (''三重區'', 17),
+            (''樹林區'', 18),
+            (''土城區'', 19),
+            (''蘆洲區'', 20),
+            (''中和區'', 21),
+            (''永和區'', 22),
+            (''新店區'', 23),
+            (''鶯歌區'', 24),
+            (''三峽區'', 25),
+            (''瑞芳區'', 26),
+            (''五股區'', 27),
+            (''泰山區'', 28),
+            (''林口區'', 29),
+            (''深坑區'', 30),
+            (''石碇區'', 31),
+            (''坪林區'', 32),
+            (''三芝區'', 33),
+            (''石門區'', 34),
+            (''八里區'', 35),
+            (''平溪區'', 36),
+            (''雙溪區'', 37),
+            (''貢寮區'', 38),
+            (''金山區'', 39),
+            (''萬里區'', 40),
+            (''烏來區'', 41)
+     ),
+     stores AS (
+        SELECT
+            district,
+            CASE
+                WHEN name ~* ''^(7-?11|7－11|7-ELEVEN|統一超商|OPEN|全家|萊爾富|OK|來來超商)'' THEN ''便利商店''
+                WHEN name ~* ''(全國電子|燦坤|大同3C|大同綜合訊電|象印|台象|家電|電器)'' THEN ''3C/家電''
+                WHEN name ~* ''(中華電信|遠傳|台灣大哥大|臺灣大哥大|台灣之星|亞太電信|神腦)'' THEN ''通訊服務''
+                WHEN name ~* ''(全聯|家樂福|大潤發|愛買|頂好|Wellcome|棉花田|聖德科斯|超市|量販)'' THEN ''量販/超市''
+                WHEN name ~* ''(汽車|TOYOTA|Toyota|國都|固德|鴻源|和泰|加油站|機車|交通)'' THEN ''交通相關''
+                WHEN name ~* ''(寶雅|屈臣氏|康是美|小三美日|美華泰|美妝|生活百貨)'' THEN ''美妝生活''
+                WHEN name ~* ''(小北百貨|特力屋|HOLA|IKEA|宜家|五金|居家)'' THEN ''五金居家''
+                ELSE ''其他''
+            END AS category
+        FROM public.green_store_tpe
+        UNION ALL
+        SELECT
+            district,
+            CASE
+                WHEN name ~* ''^(7-?11|7－11|7-ELEVEN|統一超商|OPEN|全家|萊爾富|OK|來來超商)'' THEN ''便利商店''
+                WHEN name ~* ''(全國電子|燦坤|大同3C|大同綜合訊電|象印|台象|家電|電器)'' THEN ''3C/家電''
+                WHEN name ~* ''(中華電信|遠傳|台灣大哥大|臺灣大哥大|台灣之星|亞太電信|神腦)'' THEN ''通訊服務''
+                WHEN name ~* ''(全聯|家樂福|大潤發|愛買|頂好|Wellcome|棉花田|聖德科斯|超市|量販)'' THEN ''量販/超市''
+                WHEN name ~* ''(汽車|TOYOTA|Toyota|國都|固德|鴻源|和泰|加油站|機車|交通)'' THEN ''交通相關''
+                WHEN name ~* ''(寶雅|屈臣氏|康是美|小三美日|美華泰|美妝|生活百貨)'' THEN ''美妝生活''
+                WHEN name ~* ''(小北百貨|特力屋|HOLA|IKEA|宜家|五金|居家)'' THEN ''五金居家''
+                ELSE ''其他''
+            END AS category
+        FROM public.green_store_new_tpe
+     ),
+     counts AS (
+        SELECT district, category, COUNT(*)::int AS store_count
+        FROM stores
+        GROUP BY district, category
+     )
+     SELECT
+        d.district AS x_axis,
+        co.category AS y_axis,
+        COALESCE(cnt.store_count, 0)::int AS data
+     FROM category_order co
+     CROSS JOIN district_order d
+     LEFT JOIN counts cnt ON cnt.district = d.district AND cnt.category = co.category
+     ORDER BY co.sort_order, d.sort_order',
+    NULL,
+    'metrotaipei'
+);
+
+UPDATE public.dashboards
+SET components = array_append(components, 305),
+    updated_at = NOW()
+WHERE index = 'climate-environment'
+  AND NOT 305 = ANY(components);
+
+COMMIT;

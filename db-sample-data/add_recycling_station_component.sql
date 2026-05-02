@@ -42,7 +42,7 @@ SET name = EXCLUDED.name,
 INSERT INTO public.dashboard_groups (dashboard_id, group_id)
 SELECT d.id, g.id
 FROM public.dashboards d
-JOIN public.groups g ON g.name IN ('public', 'taipei') AND g.is_personal IS FALSE
+JOIN public.groups g ON g.name IN ('public', 'taipei', 'metrotaipei') AND g.is_personal IS FALSE
 WHERE d.index = 'climate-environment'
 ON CONFLICT DO NOTHING;
 
