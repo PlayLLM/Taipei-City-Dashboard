@@ -13,9 +13,9 @@ import http from "../../router/axios";
 const chatStore = useChatStore();
 const contentStore = useContentStore();
 const authStore = useAuthStore();
-const { addChatData, addQueryData, saveChatLog } = chatStore;
+const { addChatData, saveChatLog, sendChatToLLM } = chatStore;
 const { createDashboard } = contentStore;
-const { chatData } = storeToRefs(chatStore);
+const { chatData, isAILoading } = storeToRefs(chatStore);
 const { editDashboard } = storeToRefs(contentStore);
 const { user } = storeToRefs(authStore);
 
@@ -62,13 +62,15 @@ const qaBtnHandler = async (text, relations) => {
 	}
 };
 
-const sendBtnHandler = (text) => {
-	if (!text.trim()) return;
-	addQueryData({
-		role: "user",
-		content: text,
-	});
-	userMessage.value = "";
+const sendBtnHandler = async (text) => {
+	if (!text.trim() || isAILoading.value) return;
+
+	try {
+		userMessage.value = "";
+		await sendChatToLLM(text);
+	} catch (error) {
+		console.error("Chat error:", error);
+	}
 };
 
 const toggleSticky = () => {
@@ -88,138 +90,154 @@ watch(
 </script>
 
 <template>
-  <div class="chat-widget">
-    <!-- 標題 -->
-    <div class="header">
-      <h3>臺北城市儀表板小幫手</h3>
-    </div>
+	<div class="chat-widget">
+		<!-- 標題 -->
+		<div class="header">
+			<h3>臺北城市儀表板小幫手</h3>
+		</div>
 
-    <!-- 聊天區 -->
-    <div
-      ref="chatAreaRef"
-      class="chat-area scrollbar-custom"
-    >
-      <!-- 置頂訊息 -->
-      <div class="chat-message sticky-message">
-        <div
-          class="sticky-header"
-          @click="toggleSticky"
-        >
-          <span>置頂公告：小幫手使用須知</span>
-          <button class="toggle-btn">
-            {{ isStickyOpen ? "-" : "+" }}
-          </button>
-        </div>
-        <div
-          v-show="isStickyOpen"
-          class="sticky-body"
-        >
-          <span>小幫手會依據您輸入的內容，自動檢索本站臺的組件資料庫，並回傳相似度較高的組件清單，協助您快速找到符合需求的元件或資訊。<br><br>
-            目前小幫手僅提供組件比對與分析服務，不支援一般聊天功能。如造成不便，敬請見諒！</span>
-        </div>
-      </div>
-      <div
-        v-for="chat in chatData"
-        :key="chat.id"
-        class="message"
-      >
-        <!-- 機器人訊息 -->
-        <div
-          v-if="chat.role === 'bot'"
-          class="bot"
-        >
-          <div class="avatar">
-            <BotLogo />
-          </div>
-          <div class="content">
-            <div
-              v-if="chat.content"
-              class="message--bubble"
-            >
-              <p>{{ chat.content }}</p>
-            </div>
-            <!-- 表格區 -->
-            <div
-              v-if="chat.relations"
-              v-horizontal-wheel
-              class="relation-area"
-            >
-              <table class="relation-table">
-                <thead>
-                  <tr>
-                    <th>排名</th>
-                    <th>城市名</th>
-                    <th>組件名</th>
-                    <th>關聯性</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="(item, index) in chat.relations"
-                    :key="index"
-                  >
-                    <td>{{ index + 1 }}</td>
-                    <td>
-                      {{
-                        item.city === "taipei"
-                          ? "臺北"
-                          : "雙北"
-                      }}
-                    </td>
-                    <td>{{ item.name }}</td>
-                    <td>{{ item.score }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div
-              v-if="chat.button"
-              v-horizontal-wheel
-              class="message--button scrollbar-x-hide"
-            >
-              <button
-                v-for="btn in chat.button"
-                :key="btn.id"
-                @click="qaBtnHandler(btn.text, chat.relations)"
-              >
-                {{ btn.text }}
-              </button>
-            </div>
-          </div>
-        </div>
-        <!-- 使用者訊息 -->
-        <div
-          v-else
-          class="user"
-        >
-          <div class="avatar">
-            <UserLogo />
-          </div>
-          <div
-            v-if="chat.content"
-            class="content"
-          >
-            <div class="message--bubble">
-              <p>{{ chat.content }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+		<!-- 聊天區 -->
+		<div ref="chatAreaRef" class="chat-area scrollbar-custom">
+			<!-- 置頂訊息 -->
+			<div class="chat-message sticky-message">
+				<div class="sticky-header" @click="toggleSticky">
+					<span>置頂公告：小幫手使用須知</span>
+					<button class="toggle-btn">
+						{{ isStickyOpen ? "-" : "+" }}
+					</button>
+				</div>
+				<div v-show="isStickyOpen" class="sticky-body">
+					<span
+						>小幫手會依據您輸入的內容，自動檢索本站臺的組件資料庫，並回傳相似度較高的組件清單，協助您快速找到符合需求的元件或資訊。<br /><br />
+						目前小幫手僅提供組件比對與分析服務，不支援一般聊天功能。如造成不便，敬請見諒！</span
+					>
+				</div>
+			</div>
+			<div v-for="chat in chatData" :key="chat.id" class="message">
+				<!-- 機器人訊息 -->
+				<div v-if="chat.role === 'bot'" class="bot">
+					<div class="avatar">
+						<BotLogo />
+					</div>
+					<div class="content">
+						<div v-if="chat.content" class="message--bubble">
+							<p>{{ chat.content }}</p>
+						</div>
+						<!-- 表格區 -->
+						<div
+							v-if="chat.relations"
+							v-horizontal-wheel
+							class="relation-area"
+						>
+							<table class="relation-table">
+								<thead>
+									<tr>
+										<th>排名</th>
+										<th>城市名</th>
+										<th>組件名</th>
+										<th>關聯性</th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr
+										v-for="(item, index) in chat.relations"
+										:key="index"
+									>
+										<td>{{ index + 1 }}</td>
+										<td>
+											{{
+												item.city === "taipei"
+													? "臺北"
+													: "雙北"
+											}}
+										</td>
+										<td>{{ item.name }}</td>
+										<td>{{ item.score }}</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+						<div
+							v-if="chat.button"
+							v-horizontal-wheel
+							class="message--button scrollbar-x-hide"
+						>
+							<button
+								v-for="btn in chat.button"
+								:key="btn.id"
+								@click="qaBtnHandler(btn.text, chat.relations)"
+							>
+								{{ btn.text }}
+							</button>
+						</div>
+						<!-- 工具調用資訊 -->
+						<div
+							v-if="
+								chat.toolUsed &&
+								chat.tools &&
+								chat.tools.length > 0
+							"
+							class="tool-info"
+						>
+							<div class="tool-label">使用工具：</div>
+							<div
+								v-for="(tool, index) in chat.tools"
+								:key="index"
+								class="tool-item"
+							>
+								{{ tool }}
+							</div>
+						</div>
+					</div>
+				</div>
+				<!-- 使用者訊息 -->
+				<div v-else class="user">
+					<div class="avatar">
+						<UserLogo />
+					</div>
+					<div v-if="chat.content" class="content">
+						<div class="message--bubble">
+							<p>{{ chat.content }}</p>
+						</div>
+					</div>
+				</div>
+			</div>
+			<!-- AI 載入中訊息 -->
+			<div v-if="isAILoading" class="message">
+				<div class="bot">
+					<div class="avatar">
+						<BotLogo />
+					</div>
+					<div class="content">
+						<div class="message--bubble loading-bubble">
+							<span class="loading-dots">
+								<span />
+								<span />
+								<span />
+							</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
 
-    <!-- 輸入區 -->
-    <div class="input-area">
-      <input
-        v-model="userMessage"
-        type="text"
-        placeholder="輸入訊息..."
-        @keyup.enter="sendBtnHandler(userMessage)"
-      >
-      <button @click="sendBtnHandler(userMessage)">
-        <SendIcon />
-      </button>
-    </div>
-  </div>
+		<!-- 輸入區 -->
+		<div class="input-area">
+			<input
+				v-model="userMessage"
+				type="text"
+				placeholder="輸入訊息..."
+				:disabled="isAILoading"
+				@keyup.enter="sendBtnHandler(userMessage)"
+			/>
+			<button
+				:disabled="isAILoading"
+				@click="sendBtnHandler(userMessage)"
+			>
+				<SendIcon />
+			</button>
+		</div>
+	</div>
 </template>
 
 <style lang="scss" scoped>
@@ -406,6 +424,45 @@ $radius-20: 20px;
 							padding-right: 16px;
 							font-size: 16px;
 						}
+
+						&.loading-bubble {
+							padding: 12px 16px;
+							min-width: 60px;
+
+							.loading-dots {
+								display: flex;
+								gap: 4px;
+								align-items: center;
+								justify-content: center;
+
+								span {
+									width: 8px;
+									height: 8px;
+									background: $white;
+									border-radius: 50%;
+									animation: dot-flashing 1s infinite
+										alternate;
+
+									&:nth-child(2) {
+										animation-delay: 0.2s;
+									}
+									&:nth-child(3) {
+										animation-delay: 0.4s;
+									}
+								}
+							}
+						}
+					}
+
+					@keyframes dot-flashing {
+						0% {
+							opacity: 0.2;
+							transform: scale(0.8);
+						}
+						100% {
+							opacity: 1;
+							transform: scale(1);
+						}
 					}
 
 					.message--button {
@@ -427,6 +484,26 @@ $radius-20: 20px;
 							&:hover {
 								filter: brightness(0.5);
 							}
+						}
+					}
+
+					.tool-info {
+						margin-top: 8px;
+						padding: 8px 12px;
+						background: $card-bg;
+						border-radius: 8px;
+						border: 1px solid #666;
+
+						.tool-label {
+							font-size: 12px;
+							color: #aaa;
+							margin-bottom: 4px;
+						}
+
+						.tool-item {
+							font-size: 13px;
+							color: $white;
+							padding: 2px 0;
 						}
 					}
 				}
@@ -451,6 +528,11 @@ $radius-20: 20px;
 			border: none;
 			outline: none;
 			color: black;
+
+			&:disabled {
+				opacity: 0.6;
+				cursor: not-allowed;
+			}
 		}
 
 		button {
@@ -462,8 +544,13 @@ $radius-20: 20px;
 			border: none;
 			cursor: pointer;
 
-			&:hover {
+			&:hover:not(:disabled) {
 				filter: brightness(0.5);
+			}
+
+			&:disabled {
+				opacity: 0.4;
+				cursor: not-allowed;
 			}
 		}
 	}
