@@ -15,7 +15,7 @@ export const useChatStore = defineStore("chat", () => {
 	];
 
 	// AI 聊天相關狀態
-	const aiSessionId = ref(sessionStorage.getItem("aiSessionId") || "");
+	const aiSessionId = ref(sessionStorage.getItem("aiSessionId") || null);
 	const isAILoading = ref(false);
 
 	const recommendComponents = ref(null);
@@ -43,6 +43,13 @@ export const useChatStore = defineStore("chat", () => {
 			isDefault: false,
 			...newChatData,
 		});
+	};
+
+	const clearChatHistory = () => {
+		chatData.value = [...defaultChatData];
+		aiSessionId.value = null;
+		sessionStorage.removeItem("chatData");
+		sessionStorage.removeItem("aiSessionId");
 	};
 
 	// ==================== 原本的的向量查詢功能（已停用）====================
@@ -286,7 +293,9 @@ export const useChatStore = defineStore("chat", () => {
 					tools: toolsUsed,
 				});
 
-				const dashboardMatches = parseDashboardMatches(data.tool_results);
+				const dashboardMatches = parseDashboardMatches(
+					data.tool_results,
+				);
 				if (dashboardMatches.length > 0) {
 					addDashboardMatchMessage(dashboardMatches);
 				}
@@ -381,6 +390,7 @@ export const useChatStore = defineStore("chat", () => {
 	return {
 		chatData,
 		addChatData,
+		clearChatHistory,
 		addQueryData,
 		saveChatLog,
 		aiSessionId,

@@ -14,7 +14,7 @@ import router from "../../router";
 const chatStore = useChatStore();
 const contentStore = useContentStore();
 const authStore = useAuthStore();
-const { addChatData, saveChatLog, sendChatToLLM } = chatStore;
+const { addChatData, clearChatHistory, saveChatLog, sendChatToLLM } = chatStore;
 const { createDashboard } = contentStore;
 const { chatData, isAILoading } = storeToRefs(chatStore);
 const { editDashboard } = storeToRefs(contentStore);
@@ -100,6 +100,11 @@ const toggleSticky = () => {
 	isStickyOpen.value = !isStickyOpen.value;
 };
 
+const clearChatHistoryHandler = () => {
+	if (isAILoading.value) return;
+	clearChatHistory();
+};
+
 watch(
 	() => chatData.value.length,
 	async () => {
@@ -117,9 +122,21 @@ watch(
 		<!-- 標題 -->
 		<div class="header">
 			<h3>臺北城市儀表板小幫手</h3>
-			<button class="mode-btn" @click="emit('toggle-display-mode')">
-				{{ displayMode === "floating" ? "側邊欄" : "浮動視窗" }}
-			</button>
+			<div class="header-actions">
+				<button
+					class="header-action-btn"
+					:disabled="isAILoading"
+					@click="clearChatHistoryHandler"
+				>
+					清除記錄
+				</button>
+				<button
+					class="header-action-btn"
+					@click="emit('toggle-display-mode')"
+				>
+					{{ displayMode === "floating" ? "側邊欄" : "浮動視窗" }}
+				</button>
+			</div>
 		</div>
 
 		<!-- 聊天區 -->
@@ -344,7 +361,13 @@ $radius-20: 20px;
 			margin: 0;
 		}
 
-		.mode-btn {
+		.header-actions {
+			display: flex;
+			gap: 0.5rem;
+			flex-shrink: 0;
+		}
+
+		.header-action-btn {
 			flex-shrink: 0;
 			padding: 0.35rem 0.6rem;
 			border-radius: 999px;
@@ -356,6 +379,11 @@ $radius-20: 20px;
 
 			&:hover {
 				filter: brightness(1.2);
+			}
+
+			&:disabled {
+				cursor: not-allowed;
+				opacity: 0.5;
 			}
 		}
 	}
