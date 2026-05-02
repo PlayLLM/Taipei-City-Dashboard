@@ -1,0 +1,309 @@
+{
+  "type": "FeatureCollection",
+  "name": "scooter_charging_station_approximate_points",
+  "metadata": {
+    "coordinate_note": "行政區級近似座標：由行政區中心點加固定偏移產生，非實際門牌座標。"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.493445,
+          25.028096
+        ]
+      },
+      "properties": {
+        "id": "1",
+        "name": "環南市場西一門超級充電站",
+        "operator": "中華汽車",
+        "address": "臺北市萬華區環河南路二段245號",
+        "city": "臺北市",
+        "district": "萬華區",
+        "station_type": null,
+        "operational_status": null,
+        "fee_applicable": null,
+        "open_to_public": null,
+        "plug_type": null,
+        "connector_count": null,
+        "coordinate_accuracy": "行政區級近似座標"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.558343,
+          25.053207
+        ]
+      },
+      "properties": {
+        "id": "2",
+        "name": "家樂福三民店超級充電站",
+        "operator": "中華汽車",
+        "address": "臺北市松山區三民路160號",
+        "city": "臺北市",
+        "district": "松山區",
+        "station_type": null,
+        "operational_status": null,
+        "fee_applicable": null,
+        "open_to_public": null,
+        "plug_type": null,
+        "connector_count": null,
+        "coordinate_accuracy": "行政區級近似座標"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.589464,
+          25.07126
+        ]
+      },
+      "properties": {
+        "id": "3",
+        "name": "家樂福內湖超級充電站",
+        "operator": "中華汽車",
+        "address": "臺北市內湖區民善街88號",
+        "city": "臺北市",
+        "district": "內湖區",
+        "station_type": null,
+        "operational_status": null,
+        "fee_applicable": null,
+        "open_to_public": null,
+        "plug_type": null,
+        "connector_count": null,
+        "coordinate_accuracy": "行政區級近似座標"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.507869,
+          25.064674
+        ]
+      },
+      "properties": {
+        "id": "4",
+        "name": "家樂福重慶超級充電站",
+        "operator": "中華汽車",
+        "address": "臺北市大同區重慶北路二段171號",
+        "city": "臺北市",
+        "district": "大同區",
+        "station_type": null,
+        "operational_status": null,
+        "fee_applicable": null,
+        "open_to_public": null,
+        "plug_type": null,
+        "connector_count": null,
+        "coordinate_accuracy": "行政區級近似座標"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.605499,
+          25.074905
+        ]
+      },
+      "properties": {
+        "id": "5",
+        "name": "順益汽車內湖所超級充電站",
+        "operator": "中華汽車",
+        "address": "臺北市內湖區民權東路六段13之15號",
+        "city": "臺北市",
+        "district": "內湖區",
+        "station_type": null,
+        "operational_status": null,
+        "fee_applicable": null,
+        "open_to_public": null,
+        "plug_type": null,
+        "connector_count": null,
+        "coordinate_accuracy": "行政區級近似座標"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.552777,
+          25.072556
+        ]
+      },
+      "properties": {
+        "id": "6",
+        "name": "中華汽車濱江大樓超級充電站",
+        "operator": "中華汽車",
+        "address": "臺北市中山區濱江街309號",
+        "city": "臺北市",
+        "district": "中山區",
+        "station_type": null,
+        "operational_status": null,
+        "fee_applicable": null,
+        "open_to_public": null,
+        "plug_type": null,
+        "connector_count": null,
+        "coordinate_accuracy": "行政區級近似座標"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.493621,
+          25.022897
+        ]
+      },
+      "properties": {
+        "id": "7",
+        "name": "萬華和平西專賣店超級充電站",
+        "operator": "中華汽車",
+        "address": "臺北市萬華區和平西路二段149號",
+        "city": "臺北市",
+        "district": "萬華區",
+        "station_type": null,
+        "operational_status": null,
+        "fee_applicable": null,
+        "open_to_public": null,
+        "plug_type": null,
+        "connector_count": null,
+        "coordinate_accuracy": "行政區級近似座標"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.543899,
+          25.057508
+        ]
+      },
+      "properties": {
+        "id": "8",
+        "name": "中崙站",
+        "operator": "中油",
+        "address": "台北市中山區八德路二段214號",
+        "city": "臺北市",
+        "district": "中山區",
+        "station_type": null,
+        "operational_status": null,
+        "fee_applicable": null,
+        "open_to_public": null,
+        "plug_type": null,
+        "connector_count": null,
+        "coordinate_accuracy": "行政區級近似座標"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.604883,
+          25.087399
+        ]
+      },
+      "properties": {
+        "id": "9",
+        "name": "內湖站",
+        "operator": "中油",
+        "address": "台北市內湖區民權東路六段50號",
+        "city": "臺北市",
+        "district": "內湖區",
+        "station_type": null,
+        "operational_status": null,
+        "fee_applicable": null,
+        "open_to_public": null,
+        "plug_type": null,
+        "connector_count": null,
+        "coordinate_accuracy": "行政區級近似座標"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.54279,
+          25.015785
+        ]
+      },
+      "properties": {
+        "id": "10",
+        "name": "信義路站",
+        "operator": "中油",
+        "address": "台北市大安區信義路四段374號",
+        "city": "臺北市",
+        "district": "大安區",
+        "station_type": null,
+        "operational_status": null,
+        "fee_applicable": null,
+        "open_to_public": null,
+        "plug_type": null,
+        "connector_count": null,
+        "coordinate_accuracy": "行政區級近似座標"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.555868,
+          25.052033
+        ]
+      },
+      "properties": {
+        "id": "11",
+        "name": "民生東路站",
+        "operator": "中油",
+        "address": "台北市松山區三民路126號",
+        "city": "臺北市",
+        "district": "松山區",
+        "station_type": null,
+        "operational_status": null,
+        "fee_applicable": null,
+        "open_to_public": null,
+        "plug_type": null,
+        "connector_count": null,
+        "coordinate_accuracy": "行政區級近似座標"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.509565,
+          25.147669
+        ]
+      },
+      "properties": {
+        "id": "12",
+        "name": "文林路站",
+        "operator": "中油",
+        "address": "台北市士林區文林路100號",
+        "city": "臺北市",
+        "district": "士林區",
+        "station_type": null,
+        "operational_status": null,
+        "fee_applicable": null,
+        "open_to_public": null,
+        "plug_type": null,
+        "connector_count": null,
+        "coordinate_accuracy": "行政區級近似座標"
+      }
+    }
+  ]
+}

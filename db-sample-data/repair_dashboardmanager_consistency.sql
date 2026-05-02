@@ -9,11 +9,17 @@
 --   1. docker exec postgres-manager psql -U postgres -d dashboardmanager -f /tmp/dashboardmanager-demo.sql
 --   2. docker exec postgres-data psql -U postgres -d dashboard -f /tmp/add_reusable_cup_data.sql
 --   3. docker exec postgres-data psql -U postgres -d dashboard -f /tmp/add_recycling_station_data.sql
---   4. docker exec postgres-manager psql -U postgres -d dashboardmanager -f /tmp/add_bike_network_length_component.sql
---   5. docker exec postgres-manager psql -U postgres -d dashboardmanager -f /tmp/add_reusable_cup_component.sql
---   6. docker exec postgres-manager psql -U postgres -d dashboardmanager -f /tmp/add_recycling_station_component.sql
---   7. docker exec postgres-manager psql -U postgres -d dashboardmanager -f /tmp/repair_dashboardmanager_consistency.sql
---   8. docker exec postgres-manager psql -U postgres -d dashboardmanager -f /tmp/audit_dashboardmanager_integrity.sql
+--   4. docker exec postgres-data psql -U postgres -d dashboard -f /tmp/add_eco_hotel_data.sql
+--   5. docker exec postgres-data psql -U postgres -d dashboard -f /tmp/add_eco_restaurant_data.sql
+--   6. docker exec postgres-data psql -U postgres -d dashboard -f /tmp/add_scooter_charging_data.sql
+--   7. docker exec postgres-manager psql -U postgres -d dashboardmanager -f /tmp/add_bike_network_length_component.sql
+--   8. docker exec postgres-manager psql -U postgres -d dashboardmanager -f /tmp/add_reusable_cup_component.sql
+--   9. docker exec postgres-manager psql -U postgres -d dashboardmanager -f /tmp/add_recycling_station_component.sql
+--  10. docker exec postgres-manager psql -U postgres -d dashboardmanager -f /tmp/add_eco_hotel_component.sql
+--  11. docker exec postgres-manager psql -U postgres -d dashboardmanager -f /tmp/add_eco_restaurant_component.sql
+--  12. docker exec postgres-manager psql -U postgres -d dashboardmanager -f /tmp/add_scooter_charging_component.sql
+--  13. docker exec postgres-manager psql -U postgres -d dashboardmanager -f /tmp/repair_dashboardmanager_consistency.sql
+--  14. docker exec postgres-manager psql -U postgres -d dashboardmanager -f /tmp/audit_dashboardmanager_integrity.sql
 --
 -- 注意：
 --   greenhouse_gas_total_per_capita 目前 repo 沒有對應 dashboard 資料表與完整組件 SQL。

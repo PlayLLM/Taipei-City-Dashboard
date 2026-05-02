@@ -67,6 +67,16 @@ dockerCp(
 	"/tmp/new_taipei_cup_count.csv",
 );
 dockerCp(
+	"data/臺北市營利電動機車充電站-12站.csv",
+	config.dataContainer,
+	"/tmp/scooter_charging_tpe.csv",
+);
+dockerCp(
+	"data/新北市電動機車充電站_export.csv",
+	config.dataContainer,
+	"/tmp/scooter_charging_new_tpe.csv",
+);
+dockerCp(
 	"data/臺北市資源回收站資訊.csv",
 	config.dataContainer,
 	"/tmp/recycling_station_tpe.csv",
@@ -91,14 +101,45 @@ dockerCp(
 	config.dataContainer,
 	"/tmp/add_eco_hotel_data.sql",
 );
+dockerCp(
+	"db-sample-data/add_eco_restaurant_data.sql",
+	config.dataContainer,
+	"/tmp/add_eco_restaurant_data.sql",
+);
+dockerCp(
+	"db-sample-data/add_scooter_charging_data.sql",
+	config.dataContainer,
+	"/tmp/add_scooter_charging_data.sql",
+);
+dockerCp(
+	"data/臺北市公共場所飲水機資訊.csv",
+	config.dataContainer,
+	"/tmp/drinking_fountain_tpe.csv",
+);
+dockerCp(
+	"data/11503_直飲台基本資料.csv",
+	config.dataContainer,
+	"/tmp/drinking_station_metrotaipei.csv",
+);
+dockerCp(
+	"db-sample-data/add_drinking_fountain_data.sql",
+	config.dataContainer,
+	"/tmp/add_drinking_fountain_data.sql",
+);
 
 console.log("匯入 dashboard 資料表...");
 psql(config.dataContainer, config.dashboardDb, "/tmp/add_reusable_cup_data.sql");
 psql(config.dataContainer, config.dashboardDb, "/tmp/add_recycling_station_data.sql");
 psql(config.dataContainer, config.dashboardDb, "/tmp/add_eco_hotel_data.sql");
+psql(config.dataContainer, config.dashboardDb, "/tmp/add_eco_restaurant_data.sql");
+psql(config.dataContainer, config.dashboardDb, "/tmp/add_scooter_charging_data.sql");
+psql(config.dataContainer, config.dashboardDb, "/tmp/add_drinking_fountain_data.sql");
 
-console.log("產生資源回收站 GeoJSON...");
-run("node", ["scripts/generate_recycling_station_geojson.mjs"]);
+console.log("產生 GeoJSON 檔案...");
+run("node", ["scripts/阿肥/generate_recycling_station_geojson.mjs"]);
+run("node", ["scripts/阿肥/generate_reusable_cup_geojson.mjs"]);
+run("node", ["scripts/阿肥/generate_scooter_charging_geojson.mjs"]);
+run("node", ["scripts/阿肥/generate_drinking_fountain_geojson.mjs"]);
 
 console.log("複製 dashboardmanager 組件與修復 SQL...");
 const managerSqlFiles = [
@@ -106,6 +147,10 @@ const managerSqlFiles = [
 	"add_reusable_cup_component.sql",
 	"add_recycling_station_component.sql",
 	"add_eco_hotel_component.sql",
+	"add_eco_restaurant_component.sql",
+	"add_scooter_charging_component.sql",
+	"add_drinking_fountain_component.sql",
+	"add_circular_economy_dashboard.sql",
 	"repair_dashboardmanager_consistency.sql",
 	"audit_dashboardmanager_integrity.sql",
 ];
