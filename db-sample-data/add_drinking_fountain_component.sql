@@ -46,7 +46,7 @@ INSERT INTO public.component_charts (index, color, types, unit)
 VALUES (
     'metrotaipei_drinking_fountain',
     ARRAY['#2F8AB1', '#4CB495'],
-    ARRAY['RadarChart', 'ColumnChart'],
+    ARRAY['ColumnChart'],
     '處'
 )
 ON CONFLICT (index) DO UPDATE

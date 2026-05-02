@@ -17,7 +17,7 @@ docker network create --driver=bridge --subnet=192.168.128.0/24 --gateway=192.16
 docker compose -f docker-compose-db.yaml up -d
 
 # 3) 初始化前後端依賴與 DB sample data
-docker compose -f docker-compose-init.yaml up --abort-on-container-exit
+docker compose -f docker-compose-init.yaml up
 
 # 4) 啟動 Nginx + FE + BE
 docker compose -f docker-compose.yaml up -d
