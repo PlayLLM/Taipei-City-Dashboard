@@ -78,7 +78,7 @@ const colorScale = computed(() => {
 
 const isScrollableHeatmap = computed(() => {
 	const categoryCount = props.chart_config.categories?.length || 0;
-	return categoryCount >= 20;
+	return categoryCount >= 12;
 });
 
 const rowLabels = computed(() =>
