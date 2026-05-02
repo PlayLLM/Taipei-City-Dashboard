@@ -24,6 +24,28 @@
 
 BEGIN;
 
+INSERT INTO public.dashboards (id, index, name, components, icon, updated_at, created_at)
+VALUES (
+    401,
+    'climate-environment',
+    '氣候環境',
+    '{}',
+    'eco',
+    NOW(),
+    NOW()
+)
+ON CONFLICT (index) DO UPDATE
+SET name = EXCLUDED.name,
+    icon = EXCLUDED.icon,
+    updated_at = NOW();
+
+INSERT INTO public.dashboard_groups (dashboard_id, group_id)
+SELECT d.id, g.id
+FROM public.dashboards d
+JOIN public.groups g ON g.name IN ('public', 'taipei') AND g.is_personal IS FALSE
+WHERE d.index = 'climate-environment'
+ON CONFLICT DO NOTHING;
+
 INSERT INTO public.components (id, index, name)
 VALUES (304, 'recycling_station_distribution', '資源回收站分布')
 ON CONFLICT (id) DO UPDATE

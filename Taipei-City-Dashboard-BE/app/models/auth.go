@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/dgrijalva/jwt-go"
+	"gorm.io/gorm/clause"
 )
 
 /* ----- Models ----- */
@@ -244,16 +245,16 @@ func GetUserPermission(authUserID int) (permissions []Permission, err error) {
 
 	// Add all public group with viewer permission
 	publicGroupIDs, _ := GetAllPublicGroupsID()
-	for _, publicGroudID := range publicGroupIDs{
+	for _, publicGroudID := range publicGroupIDs {
 		has_priv := false
-		for _, perm := range permissions{
-			if publicGroudID == perm.GroupID{
+		for _, perm := range permissions {
+			if publicGroudID == perm.GroupID {
 				has_priv = true
 				break
 			}
 		}
 
-		if !has_priv{
+		if !has_priv {
 			permissions = append(permissions, Permission{GroupID: publicGroudID, RoleID: 3})
 		}
 	}
@@ -302,7 +303,7 @@ func CreateUserGroupRole(authUserID, groupID, roleID int) error {
 	}
 
 	// Attempt to create the association in the models.
-	if err := DBManager.Create(&authUserGroupRole).Error; err != nil {
+	if err := DBManager.Clauses(clause.OnConflict{DoNothing: true}).Create(&authUserGroupRole).Error; err != nil {
 		// If an error occurs during creation, return the error.
 		return err
 	}

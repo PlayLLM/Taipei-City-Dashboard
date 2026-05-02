@@ -1,4 +1,13 @@
 version: "3.7"
+
+# 注意：
+# 這個 init compose 只會載入 db-sample-data/dashboardmanager-demo.sql 與
+# db-sample-data/dashboard-demo.sql，也就是基礎 demo seed。
+# 若刪除 PostgreSQL volume 後要重建到目前完整開發狀態，仍需在三個 compose
+# 啟動後回到 repo root 執行：
+#   node scripts/apply_dashboardmanager_consistency_repairs.mjs
+# 詳細流程請見 db-sample-data/README.md。
+
 services:
   dashboard-fe-init:
     image: node:${NODE_IMAGE_TAG:-latest}

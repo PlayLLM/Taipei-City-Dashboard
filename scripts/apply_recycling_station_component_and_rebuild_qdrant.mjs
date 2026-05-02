@@ -34,6 +34,17 @@ function run(command, args, options = {}) {
 	});
 }
 
+function containerExists(containerName) {
+	const output = execFileSync("docker", ["ps", "-a", "--format", "{{.Names}}"], {
+		cwd: rootDir,
+		encoding: "utf8",
+	});
+	return output
+		.split("\n")
+		.map((name) => name.trim())
+		.includes(containerName);
+}
+
 console.log(`複製資源回收站 CSV 與 dashboard SQL 到 ${config.dataContainer}...`);
 run("docker", [
 	"cp",
@@ -87,8 +98,14 @@ run("docker", [
 	"/tmp/add_recycling_station_component.sql",
 ]);
 
-console.log("重建 Qdrant public collection...");
-run("docker", ["restart", config.qdrantRebuildContainer]);
-run("docker", ["logs", "--tail=120", config.qdrantRebuildContainer]);
+if (containerExists(config.qdrantRebuildContainer)) {
+	console.log("重建 Qdrant public collection...");
+	run("docker", ["restart", config.qdrantRebuildContainer]);
+	run("docker", ["logs", "--tail=120", config.qdrantRebuildContainer]);
+} else {
+	console.log(
+		`略過 Qdrant rebuild：找不到 ${config.qdrantRebuildContainer} 容器。請啟動 vector-db-upgrade 後重建 Qdrant。`,
+	);
+}
 
 console.log("完成：PostgreSQL、GeoJSON 與 Qdrant 已同步更新。");
