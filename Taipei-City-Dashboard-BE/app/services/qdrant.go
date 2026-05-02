@@ -4,6 +4,8 @@ import (
 	"TaipeiCityDashboardBE/app/models"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -51,8 +53,8 @@ func RebuildQdrantPublicCollection() ([]models.QuertChartAndConponentForQdrant, 
 		log.Println("No public component data found. Aborting Qdrant rebuild.")
 		return data, nil
 	}
-	
-	// 2. Generate vectors for each data point	points, vectorSize, err := generateVectors(data)
+
+	// 2. Generate vectors for each data point.
 	points, vectorSize, err := generateVectors(data)
 	if err != nil {
 		log.Printf("Error generating vectors: %v", err)
@@ -86,6 +88,15 @@ func fetchPublicComponentData() ([]models.QuertChartAndConponentForQdrant, error
 	return models.GetPublicComponentsForQdrant()
 }
 
+func qdrantPointKey(item models.QuertChartAndConponentForQdrant) string {
+	return fmt.Sprintf("%d:%s:%s", item.ID, item.Index, item.City)
+}
+
+func qdrantPointID(pointKey string) uint64 {
+	sum := sha256.Sum256([]byte(pointKey))
+	return binary.BigEndian.Uint64(sum[:8])
+}
+
 func generateVectors(data []models.QuertChartAndConponentForQdrant) ([]qdrantPoint, int, error) {
 	var points []qdrantPoint
 	var vectorSize int
@@ -105,7 +116,7 @@ func generateVectors(data []models.QuertChartAndConponentForQdrant) ([]qdrantPoi
 		combinedText = strings.ReplaceAll(combinedText, "\r\n", " ")
 		combinedText = strings.ReplaceAll(combinedText, "\r", " ")
 		combinedText = strings.ReplaceAll(combinedText, "\n", " ")
-		
+
 		if combinedText == "" {
 			log.Printf("Skipping item ID %d (%s) due to empty combined text for vector generation.", item.ID, item.Name)
 			continue
@@ -122,9 +133,12 @@ func generateVectors(data []models.QuertChartAndConponentForQdrant) ([]qdrantPoi
 			vectorSize = len(vector)
 		}
 
+		pointKey := qdrantPointKey(item)
+
 		// Create payload
 		payload := map[string]interface{}{
 			"id":        item.ID,
+			"point_key": pointKey,
 			"index":     item.Index,
 			"name":      item.Name,
 			"city":      item.City,
@@ -132,10 +146,10 @@ func generateVectors(data []models.QuertChartAndConponentForQdrant) ([]qdrantPoi
 			"use_case":  item.UseCase,
 		}
 
-		// Handle point ID type: Qdrant accepts integer or UUID string.
-		// Since item.ID is now int64, we can use it directly as a uint64 point ID.
+		// The same component can have multiple city-specific query_charts rows.
+		// Hash a stable composite key so Qdrant points do not overwrite each other.
 		points = append(points, qdrantPoint{
-			ID:      uint64(item.ID),
+			ID:      qdrantPointID(pointKey),
 			Vector:  vector,
 			Payload: payload,
 		})
