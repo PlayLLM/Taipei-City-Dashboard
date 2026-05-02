@@ -99,7 +99,7 @@ export const useMapStore = defineStore("map", {
 	actions: {
 		/* Initialize Mapbox */
 		// 1. Creates the mapbox instance and passes in initial configs
-		initializeMapBox() {
+		initializeMapBox(showNavigation = true) {
 			this.map = null;
 			this.marker = null;
 			this.overlay = null;
@@ -118,7 +118,9 @@ export const useMapStore = defineStore("map", {
 				showUserHeading: true,
 			});
 			this.map.addControl(geoLocate);
-			this.map.addControl(new mapboxGl.NavigationControl());
+			if (showNavigation) {
+				this.map.addControl(new mapboxGl.NavigationControl());
+			}
 			this.map.doubleClickZoom.disable();
 			let isFirstZoom = true;
 			this.map

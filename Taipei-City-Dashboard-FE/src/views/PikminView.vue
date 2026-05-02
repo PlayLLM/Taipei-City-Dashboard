@@ -72,7 +72,7 @@ function onKeyUp(e) {
 }
 
 onMounted(() => {
-	mapStore.initializeMapBox();
+	mapStore.initializeMapBox(false);
 	mapStore.setCurrentLocation();
 
 	const {map} = mapStore;
