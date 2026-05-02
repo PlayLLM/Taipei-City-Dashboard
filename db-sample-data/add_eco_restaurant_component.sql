@@ -10,7 +10,7 @@ BEGIN;
 INSERT INTO public.component_charts (index, color, types, unit)
 VALUES (
     'metrotaipei_eco_restaurant',
-    ARRAY['#FF9800'], 
+    ARRAY['#FF9800'],
     ARRAY['DistrictChart', 'ColumnChart'],
     '間'
 )
@@ -19,7 +19,36 @@ SET color = EXCLUDED.color,
     types = EXCLUDED.types,
     unit = EXCLUDED.unit;
 
--- 2. 修正查詢邏輯 (改為 two_d 模式)
+-- 2. 地圖圖層設定
+INSERT INTO public.component_maps (id, index, title, type, source, size, icon, paint, property)
+VALUES (
+    310,
+    'eco_restaurant_metrotaipei',
+    '雙北環保餐廳',
+    'circle',
+    'geojson',
+    'big',
+    NULL,
+    '{"circle-color":"#FF9800","circle-opacity":0.85,"circle-stroke-color":"#FFFFFF","circle-stroke-width":1.2}'::json,
+    '[
+        {"key":"name","name":"餐廳名稱"},
+        {"key":"address","name":"地址"},
+        {"key":"phone","name":"電話"},
+        {"key":"city","name":"城市"},
+        {"key":"district","name":"行政區"}
+    ]'::json
+)
+ON CONFLICT (id) DO UPDATE
+SET index    = EXCLUDED.index,
+    title    = EXCLUDED.title,
+    type     = EXCLUDED.type,
+    source   = EXCLUDED.source,
+    size     = EXCLUDED.size,
+    icon     = EXCLUDED.icon,
+    paint    = EXCLUDED.paint,
+    property = EXCLUDED.property;
+
+-- 3. 修正查詢邏輯 (改為 two_d 模式)
 DELETE FROM public.query_charts
 WHERE index = 'metrotaipei_eco_restaurant'
   AND city = 'metrotaipei';
@@ -48,7 +77,7 @@ INSERT INTO public.query_charts (
 ) VALUES (
     'metrotaipei_eco_restaurant',
     NULL,
-    '{3}',
+    '{310}',
     '{"mode":"byParam","byParam":{"xParam":"district"}}'::json,
     'static',
     NULL,

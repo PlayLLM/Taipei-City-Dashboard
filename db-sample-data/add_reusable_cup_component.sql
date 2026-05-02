@@ -19,12 +19,37 @@ SET color = EXCLUDED.color,
     types = EXCLUDED.types,
     unit = EXCLUDED.unit;
 
--- 2. 更新地圖屬性配置 (增加行政區屬性以支援連動)
-UPDATE public.component_maps
-SET property = '[{"key":"brand","name":"品牌"},{"key":"store_name","name":"門市名稱"},{"key":"address","name":"地址"},{"key":"phone","name":"電話"},{"key":"city","name":"城市"},{"key":"district","name":"行政區"}]'::json
-WHERE index = 'reusable_cup_store_metrotaipei';
+-- 2. 地圖圖層設定
+INSERT INTO public.component_maps (id, index, title, type, source, size, icon, paint, property)
+VALUES (
+    311,
+    'reusable_cup_store_metrotaipei',
+    '雙北循環杯門市',
+    'circle',
+    'geojson',
+    'big',
+    NULL,
+    '{"circle-color":"#4CAF50","circle-opacity":0.85,"circle-stroke-color":"#FFFFFF","circle-stroke-width":1.2}'::json,
+    '[
+        {"key":"brand","name":"品牌"},
+        {"key":"store_name","name":"門市名稱"},
+        {"key":"address","name":"地址"},
+        {"key":"phone","name":"電話"},
+        {"key":"city","name":"城市"},
+        {"key":"district","name":"行政區"}
+    ]'::json
+)
+ON CONFLICT (id) DO UPDATE
+SET index    = EXCLUDED.index,
+    title    = EXCLUDED.title,
+    type     = EXCLUDED.type,
+    source   = EXCLUDED.source,
+    size     = EXCLUDED.size,
+    icon     = EXCLUDED.icon,
+    paint    = EXCLUDED.paint,
+    property = EXCLUDED.property;
 
--- 2. 修正查詢邏輯 (改為 two_d 模式)
+-- 3. 修正查詢邏輯 (改為 two_d 模式)
 DELETE FROM public.query_charts
 WHERE index = 'metrotaipei_reusable_cup'
   AND city = 'metrotaipei';
@@ -53,7 +78,7 @@ INSERT INTO public.query_charts (
 ) VALUES (
     'metrotaipei_reusable_cup',
     NULL,
-    '{2}',
+    '{311}',
     '{"mode":"byParam","byParam":{"xParam":"district"}}'::json,
     'static',
     NULL,
