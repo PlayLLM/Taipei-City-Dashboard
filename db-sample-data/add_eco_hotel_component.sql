@@ -106,7 +106,7 @@ BEGIN;
 INSERT INTO public.component_charts (index, color, types, unit)
 VALUES (
     'eco_hotel',
-    ARRAY['#F5C518', '#ABABAB', '#CD7F32'],
+    ARRAY['#F5C518', '#ABABAB', '#CD7F32', '#4CAF50'],
     ARRAY['ColumnChart', 'MapLegend'],
     '間'
 )
@@ -246,11 +246,18 @@ VALUES
     NOW(),
     NOW(),
     'three_d',
-    'SELECT district AS x_axis, grade AS y_axis, COUNT(*)::int AS data
-     FROM public.eco_hotel_metrotaipei
-     WHERE city = ''臺北市''
-     GROUP BY district, grade
-     ORDER BY district, grade',
+    'WITH grades AS (
+        SELECT unnest(ARRAY[''金級'', ''銀級'', ''銅級'', ''其他'']) AS grade
+     ),
+     districts AS (
+        SELECT DISTINCT district FROM public.eco_hotel_metrotaipei WHERE city = ''臺北市''
+     )
+     SELECT d.district AS x_axis, g.grade AS y_axis, COUNT(e.name)::int AS data
+     FROM districts d
+     CROSS JOIN grades g
+     LEFT JOIN public.eco_hotel_metrotaipei e ON e.district = d.district AND e.grade = g.grade AND e.city = ''臺北市''
+     GROUP BY d.district, g.grade
+     ORDER BY d.district, g.grade',
     NULL,
     'taipei'
 ),
@@ -273,10 +280,18 @@ VALUES
     NOW(),
     NOW(),
     'three_d',
-    'SELECT district AS x_axis, grade AS y_axis, COUNT(*)::int AS data
-     FROM public.eco_hotel_metrotaipei
-     GROUP BY district, grade
-     ORDER BY district, grade',
+    'WITH grades AS (
+        SELECT unnest(ARRAY[''金級'', ''銀級'', ''銅級'', ''其他'']) AS grade
+     ),
+     districts AS (
+        SELECT DISTINCT district FROM public.eco_hotel_metrotaipei
+     )
+     SELECT d.district AS x_axis, g.grade AS y_axis, COUNT(e.name)::int AS data
+     FROM districts d
+     CROSS JOIN grades g
+     LEFT JOIN public.eco_hotel_metrotaipei e ON e.district = d.district AND e.grade = g.grade
+     GROUP BY d.district, g.grade
+     ORDER BY d.district, g.grade',
     NULL,
     'metrotaipei'
 );
