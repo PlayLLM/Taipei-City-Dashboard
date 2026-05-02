@@ -40,6 +40,11 @@ const routes = [
 		component: MapView,
 	},
 	{
+		path: "/explore",
+		name: "explore",
+		component: () => import("../views/PikminView.vue"),
+	},
+	{
 		path: "/component",
 		name: "component",
 		component: ComponentView,
@@ -121,7 +126,7 @@ router.beforeEach((to) => {
 	const authStore = useAuthStore();
 	if (authStore.isMobileDevice && authStore.isNarrowDevice) {
 		if (
-			!["dashboard", "component-info", "callback", "embed", "mapview"].includes(
+			!["dashboard", "component-info", "callback", "embed", "mapview", "explore"].includes(
 				to.name
 			)
 		) {
@@ -183,14 +188,14 @@ router.beforeEach((to) => {
 	if (to.name === "component-info") {
 		contentStore.getCurrentComponentData(to.params.index, to.query.city);
 	}
-	// Clear the entire mapStore if the path doesn't start with /mapview
-	if (to.path.toLowerCase() !== "/mapview") {
+	const path = to.path.toLowerCase();
+	// Preserve the map instance on routes that own it; clear it elsewhere.
+	if (path !== "/mapview" && path !== "/explore") {
 		mapStore.clearEntireMap();
-	}
-	// Clear only map layers if the path starts with /mapview
-	else if (to.path.toLowerCase() === "/mapview") {
+	} else if (path === "/mapview") {
 		mapStore.clearOnlyLayers();
 	}
+	// /explore manages its own teardown in onBeforeUnmount.
 });
 
 // Handles admin related tasks (gets content for each route)

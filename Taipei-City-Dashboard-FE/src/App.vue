@@ -190,7 +190,7 @@ function toggleChatDisplayMode() {
 		timeToUpdate.value = frequency.value;
 	},
 ),
-	{ immediate: true });
+{ immediate: true });
 
 onBeforeMount(() => {
 	authStore.initialChecks();
@@ -234,7 +234,7 @@ onBeforeUnmount(() => {
 		}"
 	>
 		<NotificationBar />
-		<NavBar v-if="authStore.currentPath !== 'embed'" />
+		<NavBar v-if="authStore.currentPath !== 'embed' && authStore.currentPath !== 'explore'" />
 		<!-- /mapview, /dashboard layouts -->
 		<div
 			v-if="
@@ -246,6 +246,16 @@ onBeforeUnmount(() => {
 			<SideBar />
 			<div class="app-content-main">
 				<SettingsBar />
+				<RouterView />
+			</div>
+		</div>
+		<!-- /explore layout — sidebar only, no settings bar -->
+		<div
+			v-else-if="authStore.currentPath === 'explore'"
+			class="app-content full-height"
+		>
+			<SideBar />
+			<div class="app-content-main">
 				<RouterView />
 			</div>
 		</div>
@@ -337,6 +347,11 @@ onBeforeUnmount(() => {
 		height: calc(100vh - 60px);
 		height: calc(var(--vh) * 100 - 60px);
 		display: flex;
+
+		&.full-height {
+			height: 100vh;
+			height: calc(var(--vh) * 100);
+		}
 
 		&-main {
 			width: 100%;
