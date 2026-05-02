@@ -118,16 +118,20 @@ function scrollToRouteComponent() {
 		const target = document.getElementById(`dashboard-component-${componentIndex}`);
 		if (!target) return;
 		target.scrollIntoView({ behavior: "smooth", block: "center" });
-		target.classList.add("dashboard-component-highlight");
-		window.setTimeout(() => {
-			target.classList.remove("dashboard-component-highlight");
-		}, 1600);
+		target.classList.remove("dashboard-component-highlight");
+		window.requestAnimationFrame(() => {
+			target.classList.add("dashboard-component-highlight");
+			window.setTimeout(() => {
+				target.classList.remove("dashboard-component-highlight");
+			}, 2200);
+		});
 	});
 }
 
 watch(
 	[
 		() => route.query.component,
+		() => route.query.highlight,
 		() => contentStore.currentDashboard.components,
 	],
 	scrollToRouteComponent,
@@ -270,14 +274,6 @@ watch(
     </div>
   </div>
 </template>
-
-<style scoped>
-:deep(.dashboard-component-highlight) {
-	outline: 2px solid var(--color-highlight);
-	outline-offset: 4px;
-	transition: outline-color 0.2s ease;
-}
-</style>
 
 <style scoped lang="scss">
 .dashboard {

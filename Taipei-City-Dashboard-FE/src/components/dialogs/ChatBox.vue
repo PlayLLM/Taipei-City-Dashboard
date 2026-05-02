@@ -34,9 +34,17 @@ defineProps({
 
 const emit = defineEmits(["toggle-display-mode"]);
 
+function getHighlightedDashboardPath(path) {
+	if (!path) return path;
+	const [basePath, queryString = ""] = path.split("?");
+	const params = new URLSearchParams(queryString);
+	params.set("highlight", Date.now().toString());
+	return `${basePath}?${params.toString()}`;
+}
+
 const qaBtnHandler = async (text, relations) => {
 	if (relations?.path) {
-		router.push(relations.path);
+		router.push(getHighlightedDashboardPath(relations.path));
 		saveChatLog(text, `使用者前往組件：${relations.name}`);
 		return;
 	}
@@ -187,6 +195,11 @@ watch(
 									'button--dashboard-link':
 										btn.variant === 'dashboard-link',
 								}"
+								:title="
+									btn.variant === 'dashboard-link'
+										? '前往並標示對應儀表板組件'
+										: ''
+								"
 								@click="
 									qaBtnHandler(
 										btn.text,
@@ -533,16 +546,16 @@ $radius-20: 20px;
 							}
 
 							&.button--dashboard-link {
-								background: #18d2ff;
-								color: #071316;
-								border: 2px solid #ffffff;
-								box-shadow:
-									0 0 0 2px rgba(24, 210, 255, 0.25),
-									0 8px 18px rgba(24, 210, 255, 0.22);
+								background: #4f96ff;
+								color: #ffffff;
+								border: 1px solid rgba(255, 255, 255, 0.4);
 								font-weight: 700;
+								transition:
+									transform 0.16s ease,
+									filter 0.16s ease;
 
 								&:hover {
-									filter: brightness(1.12);
+									filter: brightness(1.08);
 									transform: translateY(-1px);
 								}
 							}
