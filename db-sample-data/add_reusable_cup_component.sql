@@ -4,15 +4,15 @@
 -- ============================================================
 --
 -- 前置條件：
---   1. 已在 dashboard 資料庫執行 etl_reusable_cup_stores.py
---      → public.reusable_cup_stores (含 lng/lat 精準座標)
+--   1. 已執行 db-sample-data/install_reusable_cup.sh 匯入點位及統計資料
+--      ※ 無需執行 data/etl_reusable_cup_stores.py 或 Mapbox API
 --   2. 已將 GeoJSON 放置至前端目錄：
 --      Taipei-City-Dashboard-FE/public/mapData/reusable_cup_store_tpe.geojson
 --      Taipei-City-Dashboard-FE/public/mapData/reusable_cup_store_metrotaipei.geojson
 --
 -- 執行方式：
---   docker cp db-sample-data/add_reusable_cup_component.sql postgres-manager:/tmp/
---   docker exec postgres-manager psql -U postgres -d dashboardmanager -f /tmp/add_reusable_cup_component.sql
+--   強烈建議使用統一安裝腳本：
+--   bash db-sample-data/install_reusable_cup.sh
 --
 -- ============================================================
 

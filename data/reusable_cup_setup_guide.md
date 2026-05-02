@@ -3,21 +3,32 @@
 
 ## 一、 核心工作流 (Workflow)
 
-1. **資料預處理 (Pre-processing)**：
+目前專案中，循環杯門市的資料與組件已經整合為「一鍵安裝」腳本。**一般協作者只需要執行步驟 0 即可**，步驟 1~4 為後續需要更新原始資料或修改組件時的開發參考。
+
+### 0. 一鍵安裝 (Collaborator 推薦)
+直接執行整合腳本，會自動將完整資料匯入 `dashboard` 資料庫，並將組件設定寫入 `dashboardmanager` 資料庫：
+```bash
+# 在專案根目錄執行
+bash db-sample-data/install_reusable_cup.sh
+```
+> ※ 此腳本內含已透過 API Geocoding 處理好的完整資料，協作者無需執行 Python ETL 腳本。
+
+### 1. 資料預處理 (Pre-processing) - 開發更新資料時才需要
    - 讀取原始資料（如 ODS/CSV）。
-   - 進行資料清洗（如使用 Regex 擷取地址中的「行政區」）。
-   - 統計各區數量並產出乾淨的 CSV。
+   - 執行 `data/etl_reusable_cup_stores.py` 進行資料清洗、Mapbox API 轉換座標。
+   - 產出最新的 SQL 資料檔。
 
-2. **資料庫寫入 (Data Import)**：
-   - 在 `dashboard` 資料庫建立資料表（如 `reusable_cup_stats`）。
-   - 將清洗後的統計資料寫入該表。
+### 2. 資料庫寫入 (Data Import)
+   - 在 `dashboard` 資料庫建立資料表（如 `reusable_cup_stats`, `reusable_cup_stores`）。
+   - 將清洗後的統計資料寫入該表。（一鍵腳本會自動完成）
 
-3. **組件與圖表配置 (Metadata Configuration)**：
+### 3. 組件與圖表配置 (Metadata Configuration)
    - 在 `dashboardmanager` 資料庫註冊組件基本資訊 (`components`)。
    - 設定 SQL 查詢邏輯 (`query_charts`)。
    - 設定圖表呈現樣式 (`component_charts`)。
+   - （一鍵腳本中的 `add_reusable_cup_component.sql` 會自動完成）
 
-4. **儀表板整合 (Dashboard Integration)**：
+### 4. 儀表板整合 (Dashboard Integration)
    - 建立或指定儀表板 (`dashboards`) 並關聯組件。
    - 將儀表板分配至顯示群組 (`dashboard_groups`) 以顯示於選單。
 
