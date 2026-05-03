@@ -100,9 +100,8 @@ export const useMapStore = defineStore("map", {
 		/* Initialize Mapbox */
 		// 1. Creates the mapbox instance and passes in initial configs
 		initializeMapBox(styleOverride = null) {
-			this.map = null;
-			this.marker = null;
-			this.overlay = null;
+			// Remove any existing Mapbox instance (e.g. switching MapView → Explore shares mapStore).
+			this.clearEntireMap();
 			const MAPBOXTOKEN = import.meta.env.VITE_MAPBOXTOKEN;
 			mapboxGl.accessToken = MAPBOXTOKEN;
 			this.map = new mapboxGl.Map({
@@ -2625,11 +2624,27 @@ export const useMapStore = defineStore("map", {
 		},
 		// 2. Called when user navigates away from the map
 		clearEntireMap() {
+			this.removePopup();
+			if (this.marker) {
+				try {
+					this.marker.remove();
+				} catch {
+					/* ignore */
+				}
+			}
+			this.marker = null;
+			if (this.map) {
+				try {
+					this.map.remove();
+				} catch {
+					/* ignore */
+				}
+			}
+			this.map = null;
+			this.overlay = null;
 			this.currentLayers = [];
 			this.mapConfigs = {};
-			this.map = null;
 			this.currentVisibleLayers = [];
-			this.removePopup();
 			this.tempMarkerCoordinates = null;
 		},
 	},

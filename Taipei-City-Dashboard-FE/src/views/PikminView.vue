@@ -23,7 +23,9 @@ let avatar = null;
 
 const MOVE_SPEED_MULTIPLIER = 2;
 const MOVE_SPEED_PX_PER_SEC = 260 * MOVE_SPEED_MULTIPLIER;
-const PROXIMITY_THRESHOLD = 0.0008; // ~88 m
+const PROXIMITY_THRESHOLD = 0.0005; // ~55 m（較小的互動範圍）
+const GAME_STATE_STORAGE_KEY = "pikmin-game-state-v1";
+const GAME_STATE_SAVE_INTERVAL_MS = 900;
 const heldKeys = new Set();
 let moveRaf = null;
 let lastMoveTs = 0;
@@ -52,6 +54,9 @@ const xp            = ref(0);
 const nearbyInfo    = ref(null);   // { typeId, name, emoji, action, xp, color }
 const activeDialog  = ref(null);   // same shape
 const flashMessage  = ref(null);   // { text, type: 'error'|'success' }
+const completionCounts = ref(
+	Object.fromEntries(Object.keys(INTERACTION_TYPES).map((id) => [id, 0])),
+);
 const locationData  = ref(
 	Object.fromEntries(Object.keys(INTERACTION_TYPES).map((id) => [id, []])),
 );
@@ -60,6 +65,11 @@ const isRequestingLocation = ref(false);
 
 let flashTimer = null;
 const mapHandlers = []; // for cleanup
+let currentProximityKey = null;
+let lastPersistedAt = 0;
+const autoTriggeredProximityKeys = ref(new Set());
+const completedProximityKeys = ref(new Set());
+const lastKnownCenter = ref(null);
 
 // ─── XP Computed ─────────────────────────────────────────────────────────────
 
@@ -90,9 +100,122 @@ async function loadLocationData() {
 				.map((f) => ({
 					lng: f.geometry.coordinates[0],
 					lat: f.geometry.coordinates[1],
+					props: f.properties || {},
 				}));
 		} catch { /* ignore */ }
 	}
+}
+
+function extractPointDetails(typeId, props) {
+	if (!props) return null;
+	const d = {};
+	switch (typeId) {
+		case "restaurant":
+			d.pointName = props.name || null;
+			d.address   = props.address || null;
+			d.phone     = props.phone || null;
+			break;
+		case "hotel":
+			d.pointName = props.name || null;
+			d.grade     = props.grade || null;
+			d.address   = props.address || null;
+			d.phone     = props.phone || null;
+			break;
+		case "cup":
+			d.pointName = [props.brand, props.store_name].filter(Boolean).join(" ") || null;
+			d.address   = props.address || null;
+			d.phone     = props.phone || null;
+			break;
+		case "charging":
+			d.pointName = props.name || null;
+			d.operator  = props.operator || null;
+			d.address   = props.address || null;
+			break;
+		case "fountain":
+			d.pointName     = props.name || null;
+			d.address       = props.address || null;
+			d.phone         = props.phone || null;
+			d.openTime      = props.open_time || null;
+			d.floorLocation = props.location || null;
+			break;
+		case "clothing":
+			d.pointName = props.org || null;
+			d.address   = props.address || null;
+			break;
+		default:
+			d.address = props.address || null;
+	}
+	return d;
+}
+
+function isValidCenter(center) {
+	return Array.isArray(center)
+		&& center.length === 2
+		&& Number.isFinite(Number(center[0]))
+		&& Number.isFinite(Number(center[1]));
+}
+
+function persistGameState({ force = false } = {}) {
+	if (typeof window === "undefined") return;
+	const now = Date.now();
+	if (!force && now - lastPersistedAt < GAME_STATE_SAVE_INTERVAL_MS) return;
+
+	const center = isValidCenter(lastKnownCenter.value)
+		? [Number(lastKnownCenter.value[0]), Number(lastKnownCenter.value[1])]
+		: null;
+	const completionPayload = Object.fromEntries(
+		Object.keys(INTERACTION_TYPES).map((id) => [id, Number(completionCounts.value[id]) || 0]),
+	);
+	const payload = {
+		xp: Number(xp.value) || 0,
+		completionCounts: completionPayload,
+		center,
+		autoTriggeredProximityKeys: [...autoTriggeredProximityKeys.value],
+		completedProximityKeys: [...completedProximityKeys.value],
+	};
+	try {
+		window.localStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(payload));
+		lastPersistedAt = now;
+	} catch { /* ignore */ }
+}
+
+function restoreGameState() {
+	if (typeof window === "undefined") return null;
+
+	let parsed = null;
+	try {
+		parsed = JSON.parse(window.localStorage.getItem(GAME_STATE_STORAGE_KEY) || "null");
+	} catch {
+		parsed = null;
+	}
+	if (!parsed || typeof parsed !== "object") return null;
+
+	const safeXp = Number(parsed.xp);
+	if (Number.isFinite(safeXp) && safeXp >= 0) {
+		xp.value = safeXp;
+	}
+
+	for (const id of Object.keys(INTERACTION_TYPES)) {
+		const count = Number(parsed.completionCounts?.[id]);
+		completionCounts.value[id] = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+	}
+
+	const restoredAutoKeys = Array.isArray(parsed.autoTriggeredProximityKeys)
+		? parsed.autoTriggeredProximityKeys.filter((key) => typeof key === "string")
+		: [];
+	autoTriggeredProximityKeys.value = new Set(restoredAutoKeys);
+
+	const restoredCompletedKeys = Array.isArray(parsed.completedProximityKeys)
+		? parsed.completedProximityKeys.filter((key) => typeof key === "string")
+		: [];
+	completedProximityKeys.value = new Set(restoredCompletedKeys);
+
+	if (isValidCenter(parsed.center)) {
+		const center = [Number(parsed.center[0]), Number(parsed.center[1])];
+		storeUserLocation(center, { shouldPersist: false });
+		return center;
+	}
+	return null;
 }
 
 // ─── Proximity ───────────────────────────────────────────────────────────────
@@ -104,18 +227,55 @@ function lngLatDist(lng1, lat1, lng2, lat2) {
 }
 
 function checkProximity([lng, lat]) {
-	let found = null;
+	let foundTypeId = null;
+	let foundIndex = -1;
 	let bestDist = PROXIMITY_THRESHOLD;
 	for (const typeId of Object.keys(INTERACTION_TYPES)) {
-		for (const pt of locationData.value[typeId] || []) {
+		for (const [index, pt] of (locationData.value[typeId] || []).entries()) {
 			const d = lngLatDist(lng, lat, pt.lng, pt.lat);
 			if (d < bestDist) {
 				bestDist = d;
-				found = typeId;
+				foundTypeId = typeId;
+				foundIndex = index;
 			}
 		}
 	}
-	nearbyInfo.value = found ? { typeId: found, ...INTERACTION_TYPES[found] } : null;
+	if (!foundTypeId) {
+		currentProximityKey = null;
+		nearbyInfo.value = null;
+		return;
+	}
+
+	const nextProximityKey = `${foundTypeId}:${foundIndex}`;
+	const foundPt = locationData.value[foundTypeId][foundIndex];
+	const details = extractPointDetails(foundTypeId, foundPt?.props);
+	nearbyInfo.value = {
+		typeId: foundTypeId,
+		proximityKey: nextProximityKey,
+		isCompleted: completedProximityKeys.value.has(nextProximityKey),
+		details,
+		...INTERACTION_TYPES[foundTypeId],
+	};
+
+	// First arrival at each point auto-opens once; afterwards user must click to open.
+	if (
+		currentProximityKey !== nextProximityKey
+		&& !activeDialog.value
+		&& !autoTriggeredProximityKeys.value.has(nextProximityKey)
+		&& !completedProximityKeys.value.has(nextProximityKey)
+	) {
+		activeDialog.value = {
+			typeId: foundTypeId,
+			proximityKey: nextProximityKey,
+			isCompleted: false,
+			details,
+			...INTERACTION_TYPES[foundTypeId],
+		};
+		autoTriggeredProximityKeys.value.add(nextProximityKey);
+		persistGameState({ force: true });
+	}
+
+	currentProximityKey = nextProximityKey;
 }
 
 // ─── Interaction ─────────────────────────────────────────────────────────────
@@ -134,14 +294,51 @@ function handleMapIconClick(typeId, e) {
 		showFlash("距離太遠，請靠近後再互動！");
 		return;
 	}
-	activeDialog.value = { typeId, ...INTERACTION_TYPES[typeId] };
+
+	// Find the index of this feature to build the proximity key
+	// Mapbox features usually have an index or we can use coordinates as a fallback,
+	// but for consistency with checkProximity, we'll find it in locationData.
+	let foundIndex = -1;
+	for (const [idx, pt] of (locationData.value[typeId] || []).entries()) {
+		if (Math.abs(pt.lng - clickLng) < 0.000001 && Math.abs(pt.lat - clickLat) < 0.000001) {
+			foundIndex = idx;
+			break;
+		}
+	}
+
+	const proximityKey = foundIndex !== -1 ? `${typeId}:${foundIndex}` : null;
+	const isCompleted = proximityKey ? completedProximityKeys.value.has(proximityKey) : false;
+	const clickedProps = e.features[0].properties || (foundIndex !== -1 ? locationData.value[typeId][foundIndex]?.props : null);
+	const details = extractPointDetails(typeId, clickedProps);
+
+	activeDialog.value = {
+		typeId,
+		proximityKey,
+		isCompleted,
+		details,
+		...INTERACTION_TYPES[typeId],
+	};
 }
 
 function confirmInteraction() {
 	if (!activeDialog.value) return;
+
+	if (activeDialog.value.isCompleted) {
+		showFlash("此地點已完成過，無法重複領取 XP！");
+		activeDialog.value = null;
+		return;
+	}
+
 	const gained = activeDialog.value.xp;
 	xp.value += gained;
+	completionCounts.value[activeDialog.value.typeId] = (completionCounts.value[activeDialog.value.typeId] || 0) + 1;
+
+	if (activeDialog.value.proximityKey) {
+		completedProximityKeys.value.add(activeDialog.value.proximityKey);
+	}
+
 	showFlash(`+${gained} XP！`, "success");
+	persistGameState({ force: true });
 	activeDialog.value = null;
 }
 
@@ -156,12 +353,6 @@ function toggle(id) {
 	if (mapStore.map) {
 		setPikminLayerVisibility(mapStore.map, id, visible.value[id]);
 	}
-}
-
-function recenter() {
-	if (!mapStore.map || !avatar) return;
-	const pos = avatar.getLngLat();
-	centerMapOnAvatar([pos.lng, pos.lat], { resetBearing: true });
 }
 
 function getCurrentPosition() {
@@ -184,11 +375,15 @@ function normalizeCenter(position) {
 	return [position.coords.longitude, position.coords.latitude];
 }
 
-function storeUserLocation([lng, lat]) {
+function storeUserLocation([lng, lat], { shouldPersist = true } = {}) {
+	lastKnownCenter.value = [lng, lat];
 	mapStore.userLocation = {
 		latitude: lat,
 		longitude: lng,
 	};
+	if (shouldPersist) {
+		persistGameState();
+	}
 }
 
 function handleLocationError(error, { showPermissionPrompt = true, withFallback = true } = {}) {
@@ -236,6 +431,11 @@ async function tryGetUserCenter(showPermissionPrompt = true) {
 }
 
 async function getInitialCenter() {
+	const persistedCenter = restoreGameState();
+	if (persistedCenter) {
+		return persistedCenter;
+	}
+
 	isRequestingLocation.value = true;
 	try {
 		const position = await getCurrentPosition();
@@ -305,6 +505,7 @@ function moveAvatarFrame(ts) {
 	avatar.setMoving(hasInput);
 	const cameraCenter = map.getCenter();
 	avatar.setLngLat([cameraCenter.lng, cameraCenter.lat]);
+	storeUserLocation([cameraCenter.lng, cameraCenter.lat]);
 	checkProximity([cameraCenter.lng, cameraCenter.lat]);
 
 	moveRaf = requestAnimationFrame(moveAvatarFrame);
@@ -380,6 +581,7 @@ onBeforeUnmount(() => {
 		}
 		teardownPikmin(mapStore.map);
 	}
+	persistGameState({ force: true });
 });
 </script>
 
@@ -403,12 +605,6 @@ onBeforeUnmount(() => {
             @click="requestUserLocation"
           >
             {{ isRequestingLocation ? "定位中..." : "定位到我" }}
-          </button>
-          <button
-            class="pikmin-btn"
-            @click="recenter"
-          >
-            回到角色
           </button>
         </div>
       </div>
@@ -434,7 +630,7 @@ onBeforeUnmount(() => {
             <span
               v-if="INTERACTION_TYPES[c.id]"
               class="challenge-badge"
-            >★</span>
+            >x{{ completionCounts[c.id] || 0 }}</span>
           </button>
         </div>
       </div>
@@ -468,8 +664,20 @@ onBeforeUnmount(() => {
         class="nearby-hint"
       >
         <span class="nearby-emoji">{{ nearbyInfo.emoji }}</span>
-        <span class="nearby-name">{{ nearbyInfo.name }}</span>
-        <span class="nearby-tip">點擊地圖圖標互動</span>
+        <div class="nearby-text">
+          <div class="nearby-top-row">
+            <span class="nearby-name">{{ nearbyInfo.name }}</span>
+            <span
+              v-if="nearbyInfo.details?.pointName"
+              class="nearby-point-name"
+            >{{ nearbyInfo.details.pointName }}</span>
+          </div>
+          <span
+            v-if="nearbyInfo.details?.address"
+            class="nearby-address"
+          >{{ nearbyInfo.details.address }}</span>
+          <span class="nearby-tip">點擊地圖圖標互動</span>
+        </div>
       </div>
     </transition>
 
@@ -496,17 +704,69 @@ onBeforeUnmount(() => {
           :style="{ '--dialog-color': activeDialog.color }"
         >
           <div class="dialog-header">
-            <span class="dialog-emoji">{{ activeDialog.emoji }}</span>
             <span class="dialog-name">{{ activeDialog.name }}</span>
           </div>
           <div class="dialog-action">
             {{ activeDialog.action }}
           </div>
+          <div
+            v-if="activeDialog.details"
+            class="dialog-details"
+          >
+            <div
+              v-if="activeDialog.details.pointName"
+              class="detail-pointname"
+            >
+              {{ activeDialog.details.pointName }}
+            </div>
+            <div
+              v-if="activeDialog.details.grade"
+              class="detail-row"
+            >
+              🏅 環保認證：{{ activeDialog.details.grade }}
+            </div>
+            <div
+              v-if="activeDialog.details.operator"
+              class="detail-row"
+            >
+              🏢 {{ activeDialog.details.operator }}
+            </div>
+            <div
+              v-if="activeDialog.details.address"
+              class="detail-row"
+            >
+              📍 {{ activeDialog.details.address }}
+            </div>
+            <div
+              v-if="activeDialog.details.phone"
+              class="detail-row"
+            >
+              📞 {{ activeDialog.details.phone }}
+            </div>
+            <div
+              v-if="activeDialog.details.openTime"
+              class="detail-row"
+            >
+              🕐 {{ activeDialog.details.openTime }}
+            </div>
+            <div
+              v-if="activeDialog.details.floorLocation"
+              class="detail-row"
+            >
+              🗺 {{ activeDialog.details.floorLocation }}
+            </div>
+          </div>
           <div class="dialog-xp">
-            完成可獲得 +{{ activeDialog.xp }} XP
+            <template v-if="activeDialog.isCompleted">
+              <span class="completed-text">此地點已完成集點</span>
+            </template>
+            <template v-else>
+              完成可獲得 +{{ activeDialog.xp }} XP
+            </template>
           </div>
           <div class="dialog-btns">
             <button
+              v-if="!activeDialog.isCompleted"
               class="dialog-btn confirm"
               @click="confirmInteraction"
             >
@@ -516,7 +776,7 @@ onBeforeUnmount(() => {
               class="dialog-btn cancel"
               @click="cancelInteraction"
             >
-              暫不參與
+              {{ activeDialog.isCompleted ? '關閉' : '暫不參與' }}
             </button>
           </div>
         </div>
@@ -530,7 +790,6 @@ onBeforeUnmount(() => {
       >
         <div class="dialog-box location-dialog">
           <div class="dialog-header">
-            <span class="dialog-emoji">📍</span>
             <span class="dialog-name">需要定位權限</span>
           </div>
           <div class="dialog-action">
@@ -599,6 +858,7 @@ onBeforeUnmount(() => {
 	display: flex;
 	gap: 10px;
 	align-items: stretch;
+	justify-content: space-between;
 	z-index: 5;
 }
 
@@ -660,13 +920,19 @@ onBeforeUnmount(() => {
 }
 
 .pikmin-layer-panel {
-	flex: 1 1 auto;
+	flex: 0 0 auto;
+	display: flex;
+	flex-direction: column;
+	width: fit-content;
+	max-width: calc(100% - 270px);
 }
 
 .pikmin-layer-list {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
+	width: fit-content;
+	max-width: 100%;
 }
 
 .pikmin-layer-btn {
@@ -674,6 +940,7 @@ onBeforeUnmount(() => {
 	align-items: center;
 	gap: 8px;
 	padding: 6px 10px 6px 6px;
+	width: fit-content;
 	border: 1px solid #494b4e;
 	background: rgba(9, 9, 9, 0.4);
 	color: #888787;
@@ -697,9 +964,10 @@ onBeforeUnmount(() => {
 
 	.challenge-badge {
 		color: #ffd700;
-		font-size: 0.68rem;
-		margin-left: auto;
-		padding-left: 4px;
+		font-size: 0.72rem;
+		padding-left: 2px;
+		font-weight: 700;
+		letter-spacing: 0.2px;
 	}
 
 	&.active {
@@ -724,6 +992,15 @@ onBeforeUnmount(() => {
 
 .xp-bar {
 	flex: 0 0 260px;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	text-align: right;
+	box-sizing: border-box;
+}
+
+.xp-bar .xp-level {
+	justify-content: flex-end;
 }
 
 .xp-level {
@@ -768,19 +1045,50 @@ onBeforeUnmount(() => {
 	transform: translateX(-50%);
 	z-index: 5;
 	display: flex;
-	align-items: center;
-	gap: 8px;
+	align-items: flex-start;
+	gap: 10px;
 	padding: 10px 14px;
 	background: rgba(40, 42, 44, 0.96);
 	border: 1px solid rgba(90, 156, 248, 0.75);
 	color: #fff;
 	font-size: 0.88rem;
 	pointer-events: none;
-	white-space: nowrap;
+	max-width: min(480px, calc(100vw - 32px));
 }
 
 .nearby-emoji {
 	font-size: 1.15rem;
+	flex-shrink: 0;
+	margin-top: 1px;
+}
+
+.nearby-text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.nearby-top-row {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.nearby-point-name {
+	color: #d0d3d8;
+	font-size: 0.85rem;
+	font-weight: 500;
+}
+
+.nearby-address {
+	color: #888787;
+	font-size: 0.75rem;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 100%;
 }
 
 .flash-msg {
@@ -855,10 +1163,39 @@ onBeforeUnmount(() => {
 	margin-bottom: 10px;
 }
 
+.dialog-details {
+	background: rgba(9, 9, 9, 0.45);
+	border: 1px solid #3a3b3e;
+	padding: 10px 12px;
+	margin-bottom: 14px;
+	text-align: left;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.detail-pointname {
+	font-size: 0.95rem;
+	font-weight: 600;
+	color: #fff;
+	margin-bottom: 3px;
+}
+
+.detail-row {
+	font-size: 0.78rem;
+	color: #a8abb0;
+	line-height: 1.45;
+}
+
 .dialog-xp {
 	font-size: 0.85rem;
 	color: #ffd700;
 	margin-bottom: 22px;
+
+	.completed-text {
+		color: #4caf50;
+		font-weight: 600;
+	}
 }
 
 .dialog-btns {
@@ -922,21 +1259,32 @@ onBeforeUnmount(() => {
 
 	.pikmin-actions {
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.pikmin-layer-panel,
+	.pikmin-layer-list {
+		width: 100%;
+		max-width: none;
 	}
 
 	.xp-bar {
-		flex-basis: auto;
+		flex: 0 0 auto;
+		align-self: flex-end;
+		width: min(100%, 280px);
 	}
 
 	.dialog-box {
 		min-width: 0;
 		width: calc(100vw - 24px);
 		max-width: 420px;
+		max-height: 80vh;
+		overflow-y: auto;
 	}
 
 	.nearby-hint {
 		bottom: calc(280px + env(safe-area-inset-bottom));
+		max-width: calc(100vw - 20px);
 	}
 }
 

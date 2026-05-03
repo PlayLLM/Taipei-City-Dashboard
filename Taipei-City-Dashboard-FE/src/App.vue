@@ -192,6 +192,16 @@ function toggleChatDisplayMode() {
 ),
 { immediate: true });
 
+// Explore 頁不顯示小幫手；若先前為側邊欄模式，需關閉以免留下縮排版面與右側空隙。
+watch(
+	() => route.path,
+	(path) => {
+		if (path.toLowerCase() === "/explore") {
+			isChatBoxShow.value = false;
+		}
+	},
+);
+
 onBeforeMount(() => {
 	authStore.initialChecks();
 
@@ -230,7 +240,9 @@ onBeforeUnmount(() => {
     class="app-container"
     :class="{
       'app-container--chat-sidebar':
-        chatDisplayMode === 'sidebar' && isChatBoxShow,
+        chatDisplayMode === 'sidebar' &&
+        isChatBoxShow &&
+        ['dashboard', 'mapview'].includes(authStore.currentPath),
     }"
   >
     <NotificationBar />

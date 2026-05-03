@@ -156,7 +156,9 @@ INSERT INTO public.query_charts (
         d.district AS x_axis,
         COALESCE(SUM(s.count), 0)::int AS data
     FROM districts d
-    LEFT JOIN public.scooter_charging_station_stats s ON s.district = d.district
+    LEFT JOIN public.scooter_charging_station_stats s
+        ON s.district = d.district
+       AND s.city IN (''臺北市'', ''新北市'')
     GROUP BY d.district
     ORDER BY data DESC, d.district',
     NULL,

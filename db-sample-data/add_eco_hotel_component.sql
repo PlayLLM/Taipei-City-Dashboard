@@ -199,12 +199,17 @@ VALUES
         SELECT unnest(ARRAY[''金級'', ''銀級'', ''銅級'']) AS grade
      ),
      districts AS (
-        SELECT DISTINCT district FROM public.eco_hotel_metrotaipei
+        SELECT DISTINCT district
+        FROM public.eco_hotel_metrotaipei
+        WHERE city IN (''臺北市'', ''新北市'')
      )
      SELECT d.district AS x_axis, g.grade AS y_axis, COUNT(e.name)::int AS data
      FROM districts d
      CROSS JOIN grades g
-     LEFT JOIN public.eco_hotel_metrotaipei e ON e.district = d.district AND e.grade = g.grade
+     LEFT JOIN public.eco_hotel_metrotaipei e
+        ON e.district = d.district
+       AND e.grade = g.grade
+       AND e.city IN (''臺北市'', ''新北市'')
      GROUP BY d.district, g.grade
      ORDER BY d.district, g.grade',
     NULL,
