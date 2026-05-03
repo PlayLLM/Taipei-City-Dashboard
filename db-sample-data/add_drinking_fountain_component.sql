@@ -16,9 +16,9 @@ BEGIN;
 
 INSERT INTO public.dashboards (id, index, name, components, icon, updated_at, created_at)
 VALUES (
-    401,
-    'climate-environment',
-    '氣候環境',
+    999,
+    'all-in-one',
+    '淨零生活',
     '{}',
     'eco',
     NOW(),
@@ -32,8 +32,8 @@ SET name = EXCLUDED.name,
 INSERT INTO public.dashboard_groups (dashboard_id, group_id)
 SELECT d.id, g.id
 FROM public.dashboards d
-JOIN public.groups g ON g.name IN ('public', 'taipei') AND g.is_personal IS FALSE
-WHERE d.index = 'climate-environment'
+JOIN public.groups g ON g.name = 'metrotaipei' AND g.is_personal IS FALSE
+WHERE d.index = 'all-in-one'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.components (id, index, name)
@@ -229,7 +229,7 @@ INSERT INTO public.query_charts (
 UPDATE public.dashboards
 SET components = array_append(components, 314),
     updated_at = NOW()
-WHERE index = 'climate-environment'
+WHERE index = 'all-in-one'
   AND NOT 314 = ANY(components);
 
 COMMIT;
