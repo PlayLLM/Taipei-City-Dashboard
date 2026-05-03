@@ -1,0 +1,26 @@
+[
+  {
+    "user_id": "tinghedy",
+    "profile_url": "https://github.com/Tinghedy",
+    "avatar_url": "https://github.com/Tinghedy.png?size=512",
+    "avatar_file": "data/contributors/tinghedy.png"
+  },
+  {
+    "user_id": "ncchen99",
+    "profile_url": "https://github.com/ncchen99",
+    "avatar_url": "https://github.com/ncchen99.png?size=512",
+    "avatar_file": "data/contributors/ncchen99.png"
+  },
+  {
+    "user_id": "ichenjt",
+    "profile_url": "https://github.com/ichenjt",
+    "avatar_url": "https://github.com/ichenjt.png?size=512",
+    "avatar_file": "data/contributors/ichenjt.png"
+  },
+  {
+    "user_id": "yenslife",
+    "profile_url": "https://github.com/yenslife",
+    "avatar_url": "https://github.com/yenslife.png?size=512",
+    "avatar_file": "data/contributors/yenslife.png"
+  }
+]

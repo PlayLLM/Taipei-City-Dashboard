@@ -1,7 +1,70 @@
 <!-- Developed by Taipei Urban Intelligence Center 2023-2024-->
 
 <!-- This component is mounted programmically by the mapstore. "mapConfig" and "popupContent" are passed in in the mapStore -->
-<script setup></script>
+<script setup>
+import { onBeforeUnmount, ref } from "vue";
+
+const copiedAddressKey = ref("");
+const copyResetTimer = ref(null);
+
+const isAddressItem = (item) => {
+	return (
+		item?.name === "地址" ||
+		item?.key?.toLowerCase().includes("address")
+	);
+};
+
+const getPopupValue = (content, item) => {
+	return content?.properties?.[item.key] ?? "";
+};
+
+const copyText = async (text) => {
+	if (
+		typeof navigator !== "undefined" &&
+		navigator.clipboard?.writeText
+	) {
+		try {
+			await navigator.clipboard.writeText(text);
+			return;
+		} catch {
+			// Fall back for browsers or contexts where Clipboard API is blocked.
+		}
+	}
+
+	const textarea = document.createElement("textarea");
+	textarea.value = text;
+	textarea.setAttribute("readonly", "");
+	textarea.style.position = "fixed";
+	textarea.style.opacity = "0";
+	document.body.appendChild(textarea);
+	textarea.select();
+	document.execCommand("copy");
+	document.body.removeChild(textarea);
+};
+
+const copyAddress = async (value, copyKey) => {
+	const text = String(value ?? "").trim();
+	if (!text) return;
+
+	await copyText(text);
+	copiedAddressKey.value = copyKey;
+
+	if (copyResetTimer.value) {
+		clearTimeout(copyResetTimer.value);
+	}
+	copyResetTimer.value = setTimeout(() => {
+		if (copiedAddressKey.value === copyKey) {
+			copiedAddressKey.value = "";
+		}
+	}, 1500);
+};
+
+onBeforeUnmount(() => {
+	if (copyResetTimer.value) {
+		clearTimeout(copyResetTimer.value);
+	}
+});
+</script>
 
 <template>
   <div class="mappopup">
@@ -79,7 +142,43 @@
         </div>
         <div v-else>
           <h3>{{ item.name }}</h3>
-          <p>{{ popupContent[activeTab]?.properties[item.key] }}</p>
+          <p
+            :class="{
+              'mappopup-address': isAddressItem(item),
+            }"
+          >
+            <span>{{ getPopupValue(popupContent[activeTab], item) }}</span>
+            <button
+              v-if="isAddressItem(item) && getPopupValue(popupContent[activeTab], item)"
+              class="mappopup-address-copy"
+              type="button"
+              :aria-label="`複製${item.name}`"
+              :title="`複製${item.name}`"
+              @click="copyAddress(getPopupValue(popupContent[activeTab], item), `${activeTab}-${item.key}`)"
+            >
+              <svg
+                v-if="copiedAddressKey === `${activeTab}-${item.key}`"
+                class="mappopup-address-copy-check"
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M9.2 16.6 4.9 12.3 3.5 13.7 9.2 19.4 20.5 8.1 19.1 6.7z"
+                  fill="currentColor"
+                />
+              </svg>
+              <svg
+                v-else
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M16 1H4C2.9 1 2 1.9 2 3v12h2V3h12V1zm3 4H8C6.9 5 6 5.9 6 7v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+          </p>
         </div>
       </div>
     </div>
@@ -190,6 +289,45 @@
 
 		p {
 			text-align: justify;
+		}
+
+		.mappopup-address {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+
+			span {
+				flex: 1;
+			}
+
+			&-copy {
+				display: inline-flex;
+				flex: 0 0 auto;
+				align-items: center;
+				justify-content: center;
+				width: 20px;
+				height: 20px;
+				margin: 0;
+				padding: 2px;
+				border-radius: 4px;
+				color: var(--color-complement-text);
+				opacity: 0.75;
+				transition: color 0.2s, opacity 0.2s, background-color 0.2s;
+
+				&:hover {
+					background-color: rgb(77, 77, 77);
+					opacity: 1;
+				}
+
+				svg {
+					width: 16px;
+					height: 16px;
+				}
+
+				&-check {
+					color: #2ecc71;
+				}
+			}
 		}
 	}
 

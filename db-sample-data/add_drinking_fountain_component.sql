@@ -133,27 +133,39 @@ INSERT INTO public.query_charts (
     NOW(),
     'three_d',
     'WITH districts AS (
-        SELECT unnest(ARRAY[''北投區'', ''士林區'', ''內湖區'', ''南港區'', ''松山區'', ''信義區'', ''中山區'', ''大同區'', ''中正區'', ''萬華區'', ''大安區'', ''文山區'', ''新莊區'', ''淡水區'', ''汐止區'', ''板橋區'', ''三重區'', ''樹林區'', ''土城區'', ''蘆洲區'', ''中和區'', ''永和區'', ''新店區'', ''鶯歌區'', ''三峽區'', ''瑞芳區'', ''五股區'', ''泰山區'', ''林口區'', ''深坑區'', ''石碇區'', ''坪林區'', ''三芝區'', ''石門區'', ''八里區'', ''平溪區'', ''雙溪區'', ''貢寮區'', ''金山區'', ''萬里區'', ''烏來區'']) AS district
+        SELECT district, sort_order
+        FROM unnest(ARRAY[''北投區'', ''士林區'', ''內湖區'', ''南港區'', ''松山區'', ''信義區'', ''中山區'', ''大同區'', ''中正區'', ''萬華區'', ''大安區'', ''文山區'', ''新莊區'', ''淡水區'', ''汐止區'', ''板橋區'', ''三重區'', ''樹林區'', ''土城區'', ''蘆洲區'', ''中和區'', ''永和區'', ''新店區'', ''鶯歌區'', ''三峽區'', ''瑞芳區'', ''五股區'', ''泰山區'', ''林口區'', ''深坑區'', ''石碇區'', ''坪林區'', ''三芝區'', ''石門區'', ''八里區'', ''平溪區'', ''雙溪區'', ''貢寮區'', ''金山區'', ''萬里區'', ''烏來區''])
+        WITH ORDINALITY AS d(district, sort_order)
     ), types AS (
-        SELECT unnest(ARRAY[''飲水機'', ''直飲臺'']) AS source_type
+        SELECT source_type, sort_order
+        FROM unnest(ARRAY[''飲水機'', ''直飲臺''])
+        WITH ORDINALITY AS t(source_type, sort_order)
     ), stats AS (
         SELECT district, source_type, COUNT(*)::int AS count
         FROM public.drinking_fountain_sites
         WHERE city IN (''臺北市'', ''新北市'')
         GROUP BY district, source_type
+    ), active_districts AS (
+        SELECT d.district, d.sort_order
+        FROM districts d
+        WHERE EXISTS (
+            SELECT 1
+            FROM stats s
+            WHERE s.district = d.district
+        )
     )
     SELECT
         d.district AS x_axis,
         t.source_type AS y_axis,
         COALESCE(s.count, 0)::int AS data
-    FROM districts d
+    FROM active_districts d
     CROSS JOIN types t
     LEFT JOIN stats s
         ON s.district = d.district
        AND s.source_type = t.source_type
     ORDER BY
-        array_position(ARRAY[''北投區'', ''士林區'', ''內湖區'', ''南港區'', ''松山區'', ''信義區'', ''中山區'', ''大同區'', ''中正區'', ''萬華區'', ''大安區'', ''文山區'', ''新莊區'', ''淡水區'', ''汐止區'', ''板橋區'', ''三重區'', ''樹林區'', ''土城區'', ''蘆洲區'', ''中和區'', ''永和區'', ''新店區'', ''鶯歌區'', ''三峽區'', ''瑞芳區'', ''五股區'', ''泰山區'', ''林口區'', ''深坑區'', ''石碇區'', ''坪林區'', ''三芝區'', ''石門區'', ''八里區'', ''平溪區'', ''雙溪區'', ''貢寮區'', ''金山區'', ''萬里區'', ''烏來區''], d.district),
-        array_position(ARRAY[''飲水機'', ''直飲臺''], t.source_type)',
+        d.sort_order,
+        t.sort_order',
     NULL,
     'metrotaipei'
 );

@@ -137,4 +137,13 @@ WHERE dg.dashboard_id = d.id
   AND COALESCE(array_length(d.components, 1), 0) = 0
   AND d.index NOT IN ('09a25cd9cb7d');
 
+-- 根據需求，移除「氣候環境」與「循環經濟」的區塊，只保留「淨零生活」
+DELETE FROM public.dashboard_groups dg
+USING public.dashboards d
+WHERE dg.dashboard_id = d.id
+  AND d.index IN ('climate-environment', 'circular-economy');
+
+DELETE FROM public.dashboards
+WHERE index IN ('climate-environment', 'circular-economy');
+
 COMMIT;

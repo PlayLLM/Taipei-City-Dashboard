@@ -28,6 +28,7 @@ const heldKeys = new Set();
 let moveRaf = null;
 let lastMoveTs = 0;
 const DEFAULT_START_CENTER = [121.536609, 25.044808];
+const AVATAR_SCREEN_Y_RATIO = 0.64;
 
 // Only these three types are interactable challenge points
 const INTERACTION_TYPES = {
@@ -156,13 +157,7 @@ function toggle(id) {
 function recenter() {
 	if (!mapStore.map || !avatar) return;
 	const pos = avatar.getLngLat();
-	mapStore.map.easeTo({
-		center: [pos.lng, pos.lat],
-		zoom: 18.2,
-		pitch: 60,
-		bearing: 0,
-		duration: 800,
-	});
+	followAvatar([pos.lng, pos.lat], { duration: 800, resetBearing: true });
 }
 
 function getCurrentPosition() {
@@ -258,18 +253,30 @@ async function getInitialCenter() {
 async function requestUserLocation() {
 	const center = await tryGetUserCenter(true);
 	if (!center || !mapStore.map || !avatar) return;
-	mapStore.map.easeTo({
-		center,
-		zoom: 18.2,
-		pitch: 60,
-		bearing: 0,
-		duration: 800,
-	});
 	avatar.setLngLat(center);
+	followAvatar(center, { duration: 800, resetBearing: true });
 	checkProximity(center);
 }
 
 // ─── Avatar Movement ─────────────────────────────────────────────────────────
+
+function getAvatarCameraOffset() {
+	const canvas = mapStore.map?.getCanvas();
+	if (!canvas) return [0, 0];
+	return [0, canvas.clientHeight * (AVATAR_SCREEN_Y_RATIO - 0.5)];
+}
+
+function followAvatar(center, { duration = 0, resetBearing = false } = {}) {
+	if (!mapStore.map) return;
+	mapStore.map.easeTo({
+		center,
+		offset: getAvatarCameraOffset(),
+		zoom: 18.2,
+		pitch: 60,
+		...(resetBearing ? { bearing: 0 } : {}),
+		duration,
+	});
+}
 
 function moveAvatarFrame(ts) {
 	if (!avatar || !mapStore.map) return;
@@ -304,7 +311,7 @@ function moveAvatarFrame(ts) {
 		avatar.setLngLat([nextLngLat.lng, nextLngLat.lat]);
 		avatarLngLat = nextLngLat;
 	}
-	mapStore.map.setCenter([avatarLngLat.lng, avatarLngLat.lat]);
+	followAvatar([avatarLngLat.lng, avatarLngLat.lat]);
 	checkProximity([avatarLngLat.lng, avatarLngLat.lat]);
 
 	moveRaf = requestAnimationFrame(moveAvatarFrame);
@@ -334,7 +341,7 @@ onMounted(async () => {
 		applyGameEnvironment(map);
 		hideMinorRoadLabels(map);
 		hideMapboxPOIs(map);
-		map.easeTo({ center: initialCenter, zoom: 18.2, pitch: 60, duration: 0 });
+		followAvatar(initialCenter);
 
 		avatar = new AvatarMarker(map, initialCenter);
 		avatar.start(); // no-op; animation controlled by setMoving()
@@ -412,7 +419,6 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </div>
-
     </div>
 
     <div class="pikmin-bottom-panels">
@@ -764,7 +770,7 @@ onBeforeUnmount(() => {
 
 .nearby-hint {
 	position: absolute;
-	bottom: calc(130px + env(safe-area-inset-bottom));
+	bottom: calc(190px + env(safe-area-inset-bottom));
 	left: 50%;
 	transform: translateX(-50%);
 	z-index: 5;
@@ -937,7 +943,7 @@ onBeforeUnmount(() => {
 	}
 
 	.nearby-hint {
-		bottom: calc(220px + env(safe-area-inset-bottom));
+		bottom: calc(280px + env(safe-area-inset-bottom));
 	}
 }
 

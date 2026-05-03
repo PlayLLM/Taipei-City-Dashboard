@@ -1,17 +1,23 @@
 BEGIN;
 
+DELETE FROM public.dashboard_groups dg
+USING public.dashboards d
+WHERE dg.dashboard_id = d.id AND d.index = 'all-in-one';
+
+DELETE FROM public.dashboards WHERE index = 'all-in-one';
 INSERT INTO public.dashboards (id, index, name, components, icon, updated_at, created_at)
 VALUES (
-    403,
+    999,
     'all-in-one',
     '淨零生活',
     '{}',
-    'dashboard',
+    'eco',
     NOW(),
     NOW()
 )
 ON CONFLICT (index) DO UPDATE
-SET name = EXCLUDED.name,
+SET id = EXCLUDED.id,
+    name = EXCLUDED.name,
     icon = EXCLUDED.icon,
     updated_at = NOW();
 

@@ -236,7 +236,24 @@ onMounted(() => {
 		padding-top: 20px;
 
 		.sidebar-collapse-btnContainer {
-			top: 18px;
+			// Keep collapse button aligned with the "互動遊戲" heading row.
+			position: absolute;
+			top: 22px;
+			right: 8px;
+			left: auto;
+			width: fit-content;
+			justify-content: center;
+			background: transparent;
+
+			&.notExpanded {
+				position: absolute;
+				top: 22px;
+				right: 0;
+				left: auto;
+				width: fit-content;
+				padding-bottom: 2px;
+				background: transparent;
+			}
 		}
 	}
 
