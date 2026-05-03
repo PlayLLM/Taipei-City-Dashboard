@@ -1,69 +1,70 @@
 <!-- Developed by Taipei Urban Intelligence Center 2023-2024-->
 
 <!-- This component is mounted programmically by the mapstore. "mapConfig" and "popupContent" are passed in in the mapStore -->
-<script setup>
-import { onBeforeUnmount, ref } from "vue";
-
-const copiedAddressKey = ref("");
-const copyResetTimer = ref(null);
-
-const isAddressItem = (item) => {
-	return (
-		item?.name === "地址" ||
-		item?.key?.toLowerCase().includes("address")
-	);
-};
-
-const getPopupValue = (content, item) => {
-	return content?.properties?.[item.key] ?? "";
-};
-
-const copyText = async (text) => {
-	if (
-		typeof navigator !== "undefined" &&
-		navigator.clipboard?.writeText
-	) {
-		try {
-			await navigator.clipboard.writeText(text);
-			return;
-		} catch {
-			// Fall back for browsers or contexts where Clipboard API is blocked.
+<script>
+export default {
+	data() {
+		return {
+			copiedAddressKey: "",
+			copyResetTimer: null,
+		};
+	},
+	beforeUnmount() {
+		if (this.copyResetTimer) {
+			clearTimeout(this.copyResetTimer);
 		}
-	}
+	},
+	methods: {
+		isAddressItem(item) {
+			return (
+				item?.name === "地址" ||
+				item?.key?.toLowerCase().includes("address")
+			);
+		},
+		getPopupValue(content, item) {
+			return content?.properties?.[item.key] ?? "";
+		},
+		async copyText(text) {
+			if (
+				typeof navigator !== "undefined" &&
+				navigator.clipboard?.writeText
+			) {
+				try {
+					await navigator.clipboard.writeText(text);
+					return;
+				} catch {
+					// Fall back for browsers or contexts where Clipboard API is blocked.
+				}
+			}
 
-	const textarea = document.createElement("textarea");
-	textarea.value = text;
-	textarea.setAttribute("readonly", "");
-	textarea.style.position = "fixed";
-	textarea.style.opacity = "0";
-	document.body.appendChild(textarea);
-	textarea.select();
-	document.execCommand("copy");
-	document.body.removeChild(textarea);
+			const textarea = document.createElement("textarea");
+			textarea.value = text;
+			textarea.setAttribute("readonly", "");
+			textarea.style.position = "fixed";
+			textarea.style.opacity = "0";
+			document.body.appendChild(textarea);
+			textarea.select();
+			document.execCommand("copy");
+			document.body.removeChild(textarea);
+		},
+		async copyAddress(value, copyKey) {
+			const text = String(value ?? "").trim();
+			if (!text) return;
+
+			await this.copyText(text);
+			this.copiedAddressKey = copyKey;
+
+			if (this.copyResetTimer) {
+				clearTimeout(this.copyResetTimer);
+			}
+			this.copyResetTimer = setTimeout(() => {
+				if (this.copiedAddressKey === copyKey) {
+					this.copiedAddressKey = "";
+				}
+			}, 1500);
+		},
+	},
 };
-
-const copyAddress = async (value, copyKey) => {
-	const text = String(value ?? "").trim();
-	if (!text) return;
-
-	await copyText(text);
-	copiedAddressKey.value = copyKey;
-
-	if (copyResetTimer.value) {
-		clearTimeout(copyResetTimer.value);
-	}
-	copyResetTimer.value = setTimeout(() => {
-		if (copiedAddressKey.value === copyKey) {
-			copiedAddressKey.value = "";
-		}
-	}, 1500);
-};
-
-onBeforeUnmount(() => {
-	if (copyResetTimer.value) {
-		clearTimeout(copyResetTimer.value);
-	}
-});
 </script>
 
 <template>
