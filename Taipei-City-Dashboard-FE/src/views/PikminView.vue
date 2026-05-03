@@ -275,36 +275,32 @@ function moveAvatarFrame(ts) {
 	const deltaSec = Math.min((ts - lastMoveTs) / 1000, 0.05);
 	lastMoveTs = ts;
 
+	const { map } = mapStore;
 	const horizontal = (heldKeys.has("ArrowRight") ? 1 : 0) - (heldKeys.has("ArrowLeft") ? 1 : 0);
 	const vertical = (heldKeys.has("ArrowUp") ? 1 : 0) - (heldKeys.has("ArrowDown") ? 1 : 0);
 	const hasInput = horizontal !== 0 || vertical !== 0;
-	let stepX = 0;
-	let stepY = 0;
-	if (hasInput) {
-		const vecLen = Math.hypot(horizontal, vertical);
-		const dirX = horizontal / vecLen;
-		const dirY = -(vertical / vecLen);
-		const distancePx = MOVE_SPEED_PX_PER_SEC * deltaSec;
-		stepX = dirX * distancePx;
-		stepY = dirY * distancePx;
 
+	if (hasInput) {
 		if (horizontal < 0) avatar.face("left");
 		if (horizontal > 0) avatar.face("right");
+
+		const vecLen = Math.hypot(horizontal, vertical);
+		const dirX = horizontal / vecLen;
+		const dirY = -(vertical / vecLen); // screen Y is inverted
+		const distancePx = MOVE_SPEED_PX_PER_SEC * deltaSec;
+		const centerScreen = map.project(map.getCenter());
+		const nextLngLat = map.unproject([
+			centerScreen.x + dirX * distancePx,
+			centerScreen.y + dirY * distancePx,
+		]);
+		map.setCenter(nextLngLat);
+		avatar.setLngLat([nextLngLat.lng, nextLngLat.lat]);
 	}
 
 	avatar.setMoving(hasInput);
-	let avatarLngLat = avatar.getLngLat();
-
-	if (hasInput) {
-		const mapCenter = mapStore.map.getCenter();
-		const centerScreen = mapStore.map.project(mapCenter);
-		const nextScreen = [centerScreen.x + stepX, centerScreen.y + stepY];
-		const nextLngLat = mapStore.map.unproject(nextScreen);
-		avatar.setLngLat([nextLngLat.lng, nextLngLat.lat]);
-		avatarLngLat = nextLngLat;
-		centerMapOnAvatar([avatarLngLat.lng, avatarLngLat.lat]);
-	}
-	checkProximity([avatarLngLat.lng, avatarLngLat.lat]);
+	const cameraCenter = map.getCenter();
+	avatar.setLngLat([cameraCenter.lng, cameraCenter.lat]);
+	checkProximity([cameraCenter.lng, cameraCenter.lat]);
 
 	moveRaf = requestAnimationFrame(moveAvatarFrame);
 }

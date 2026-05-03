@@ -183,9 +183,11 @@ export function setPikminLayerVisibility(map, componentId, visible) {
 	}
 }
 
-// Avatar rendered as a Mapbox canvas symbol layer so game-icon layers (added
-// afterwards) always render on top of the character — guaranteeing clicks work
-// even when the sprite overlaps an icon.
+// Avatar rendered as a DOM canvas overlay locked to the centre of the map
+// container. The avatar's lng/lat is purely bookkeeping — visually it never
+// leaves the screen centre, so panning the map underneath always shows the
+// character standing on top of the world coordinate that is currently the
+// camera centre.
 export class AvatarMarker {
 	constructor(map, lngLat, { frameCount = 8, frameMs = 100, size = 96 } = {}) {
 		this.map        = map;
@@ -205,69 +207,42 @@ export class AvatarMarker {
 		const dpr = Math.min(window.devicePixelRatio || 1, 2);
 		this._dpr = dpr;
 
-		// Off-screen canvas — sized at CSS pixels × dpr for HiDPI sharpness.
 		const canvas = document.createElement("canvas");
+		canvas.className = "pikmin-avatar-overlay";
 		canvas.width  = size * dpr;
 		canvas.height = size * dpr;
+		// Anchor bottom-centre of the sprite to the map's screen centre.
+		Object.assign(canvas.style, {
+			position: "absolute",
+			left: "50%",
+			top: "50%",
+			width: `${size}px`,
+			height: `${size}px`,
+			transform: "translate(-50%, -100%)",
+			pointerEvents: "none",
+			zIndex: "3",
+			willChange: "transform",
+		});
 		this._canvas = canvas;
 		this._ctx    = canvas.getContext("2d");
 
-		// Preload all animation frames.
+		const container = map.getContainer();
+		container.appendChild(canvas);
+
 		this._frames = Array.from({ length: frameCount }, (_, i) => {
 			const img = new Image();
 			img.onload = () => {
 				this._loadedCount++;
-				// Draw as soon as standing frame is ready; don't wait for all frames.
 				if (i === this._idx || this._loadedCount === frameCount) this._drawFrame(this._idx);
 			};
 			img.onerror = () => { this._loadedCount++; };
 			img.src = `/images/pikmin/avatar/${i + 1}.webp`;
 			return img;
 		});
-
-		this._imageId  = "pikmin-avatar-img";
-		this._sourceId = "pikmin-avatar-src";
-		this._layerId  = "pikmin-avatar-layer";
-
-		// Clear any stale hot-reload leftovers before re-registering avatar resources.
-		if (map.getLayer(this._layerId)) map.removeLayer(this._layerId);
-		if (map.getSource(this._sourceId)) map.removeSource(this._sourceId);
-		if (map.hasImage(this._imageId)) map.removeImage(this._imageId);
-
-		// Register blank image first so the layer references it immediately.
-		this._ctx.clearRect(0, 0, canvas.width, canvas.height);
-		const blank = this._ctx.getImageData(0, 0, canvas.width, canvas.height);
-		map.addImage(this._imageId, blank, { pixelRatio: dpr, sdf: false });
-
-		map.addSource(this._sourceId, {
-			type: "geojson",
-			data: {
-				type: "Feature",
-				geometry: { type: "Point", coordinates: lngLat },
-				properties: {},
-			},
-		});
-
-		// Layer is added here — setupPikminLayers() is called AFTER the
-		// constructor so those icon layers sit above this one in the style.
-		map.addLayer({
-			id: this._layerId,
-			type: "symbol",
-			source: this._sourceId,
-			layout: {
-				"icon-image": this._imageId,
-				"icon-size": 1,
-				"icon-allow-overlap": true,
-				"icon-ignore-placement": true,
-				"icon-anchor": "bottom",
-				"icon-pitch-alignment": "viewport",
-				"icon-rotation-alignment": "viewport",
-			},
-		});
 	}
 
 	_drawFrame(idx) {
-		if (!this.map || !this.map.hasImage(this._imageId)) return;
+		if (!this.map) return;
 		const frame = this._frames[idx];
 		if (!frame?.complete || !frame.naturalWidth) return;
 		const { _ctx: ctx, _canvas: canvas, _facingLeft: left } = this;
@@ -282,8 +257,6 @@ export class AvatarMarker {
 		} else {
 			ctx.drawImage(frame, 0, 0, width, height);
 		}
-		const frameData = ctx.getImageData(0, 0, width, height);
-		this.map.updateImage(this._imageId, frameData);
 	}
 
 	_animLoop(timestamp) {
@@ -324,11 +297,6 @@ export class AvatarMarker {
 	setLngLat(lngLat) {
 		this._lngLat[0] = lngLat[0];
 		this._lngLat[1] = lngLat[1];
-		this.map.getSource(this._sourceId)?.setData({
-			type: "Feature",
-			geometry: { type: "Point", coordinates: lngLat },
-			properties: {},
-		});
 	}
 
 	face(direction) {
@@ -340,11 +308,10 @@ export class AvatarMarker {
 
 	destroy() {
 		if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
-		const { map } = this;
 		this.map = null; // guard against late-firing RAF / onload callbacks
-		if (map?.getLayer(this._layerId))   map.removeLayer(this._layerId);
-		if (map?.getSource(this._sourceId)) map.removeSource(this._sourceId);
-		if (map?.hasImage(this._imageId))   map.removeImage(this._imageId);
+		if (this._canvas?.parentNode) {
+			this._canvas.parentNode.removeChild(this._canvas);
+		}
 	}
 }
 
