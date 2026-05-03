@@ -32,25 +32,43 @@ const AVATAR_SCREEN_Y_RATIO = 0.64;
 
 // Only these three types are interactable challenge points
 const INTERACTION_TYPES = {
-	clothing:   { name: "舊衣回收箱", emoji: "👕", action: "是否投入舊衣？",     xp: 20, color: "#2B5FBF" },
-	hotel:      { name: "環保旅宿",   emoji: "🏨", action: "是否要 Check in？",  xp: 50, color: "#2E8B57" },
-	restaurant: { name: "環保餐廳",   emoji: "🍽",  action: "是否要用餐？",        xp: 30, color: "#E07B00" },
+	clothing: {
+		name: "舊衣回收箱",
+		emoji: "👕",
+		action: "是否投入舊衣？",
+		xp: 20,
+		color: "#2B5FBF",
+	},
+	hotel: {
+		name: "環保旅宿",
+		emoji: "🏨",
+		action: "是否要 Check in？",
+		xp: 50,
+		color: "#2E8B57",
+	},
+	restaurant: {
+		name: "環保餐廳",
+		emoji: "🍽",
+		action: "是否要用餐？",
+		xp: 30,
+		color: "#E07B00",
+	},
 };
 
 const XP_LEVELS = [
-	{ level: 1, min: 0,    max: 100,  title: "新手探索者" },
-	{ level: 2, min: 100,  max: 250,  title: "環保新秀"   },
-	{ level: 3, min: 250,  max: 500,  title: "循環達人"   },
-	{ level: 4, min: 500,  max: 1000, title: "永續勇士"   },
+	{ level: 1, min: 0, max: 100, title: "新手探索者" },
+	{ level: 2, min: 100, max: 250, title: "環保新秀" },
+	{ level: 3, min: 250, max: 500, title: "循環達人" },
+	{ level: 4, min: 500, max: 1000, title: "永續勇士" },
 	{ level: 5, min: 1000, max: null, title: "地球守護者" },
 ];
 
 // State
-const xp            = ref(0);
-const nearbyInfo    = ref(null);   // { typeId, name, emoji, action, xp, color }
-const activeDialog  = ref(null);   // same shape
-const flashMessage  = ref(null);   // { text, type: 'error'|'success' }
-const locationData  = ref({ clothing: [], hotel: [], restaurant: [] });
+const xp = ref(0);
+const nearbyInfo = ref(null); // { typeId, name, emoji, action, xp, color }
+const activeDialog = ref(null); // same shape
+const flashMessage = ref(null); // { text, type: 'error'|'success' }
+const locationData = ref({ clothing: [], hotel: [], restaurant: [] });
 const locationPermissionModal = ref(false);
 const isRequestingLocation = ref(false);
 
@@ -87,7 +105,9 @@ async function loadLocationData() {
 					lng: f.geometry.coordinates[0],
 					lat: f.geometry.coordinates[1],
 				}));
-		} catch { /* ignore */ }
+		} catch {
+			/* ignore */
+		}
 	}
 }
 
@@ -111,7 +131,9 @@ function checkProximity([lng, lat]) {
 			}
 		}
 	}
-	nearbyInfo.value = found ? { typeId: found, ...INTERACTION_TYPES[found] } : null;
+	nearbyInfo.value = found
+		? { typeId: found, ...INTERACTION_TYPES[found] }
+		: null;
 }
 
 // ─── Interaction ─────────────────────────────────────────────────────────────
@@ -119,14 +141,18 @@ function checkProximity([lng, lat]) {
 function showFlash(text, type = "error") {
 	flashMessage.value = { text, type };
 	if (flashTimer) clearTimeout(flashTimer);
-	flashTimer = setTimeout(() => { flashMessage.value = null; }, 2000);
+	flashTimer = setTimeout(() => {
+		flashMessage.value = null;
+	}, 2000);
 }
 
 function handleMapIconClick(typeId, e) {
 	if (!avatar || !e.features?.length) return;
 	const [clickLng, clickLat] = e.features[0].geometry.coordinates;
 	const pos = avatar.getLngLat();
-	if (lngLatDist(pos.lng, pos.lat, clickLng, clickLat) > PROXIMITY_THRESHOLD) {
+	if (
+		lngLatDist(pos.lng, pos.lat, clickLng, clickLat) > PROXIMITY_THRESHOLD
+	) {
 		showFlash("距離太遠，請靠近後再互動！");
 		return;
 	}
@@ -162,7 +188,9 @@ function recenter() {
 
 function getCurrentPosition() {
 	if (!navigator.geolocation) {
-		const error = new Error("Geolocation is not supported by this browser.");
+		const error = new Error(
+			"Geolocation is not supported by this browser.",
+		);
 		error.code = "unsupported";
 		return Promise.reject(error);
 	}
@@ -187,7 +215,10 @@ function storeUserLocation([lng, lat]) {
 	};
 }
 
-function handleLocationError(error, { showPermissionPrompt = true, withFallback = true } = {}) {
+function handleLocationError(
+	error,
+	{ showPermissionPrompt = true, withFallback = true } = {},
+) {
 	if (error?.code === 1) {
 		if (showPermissionPrompt) {
 			locationPermissionModal.value = true;
@@ -284,8 +315,11 @@ function moveAvatarFrame(ts) {
 	const deltaSec = Math.min((ts - lastMoveTs) / 1000, 0.05);
 	lastMoveTs = ts;
 
-	const horizontal = (heldKeys.has("ArrowRight") ? 1 : 0) - (heldKeys.has("ArrowLeft") ? 1 : 0);
-	const vertical = (heldKeys.has("ArrowUp") ? 1 : 0) - (heldKeys.has("ArrowDown") ? 1 : 0);
+	const horizontal =
+		(heldKeys.has("ArrowRight") ? 1 : 0) -
+		(heldKeys.has("ArrowLeft") ? 1 : 0);
+	const vertical =
+		(heldKeys.has("ArrowUp") ? 1 : 0) - (heldKeys.has("ArrowDown") ? 1 : 0);
 	const hasInput = horizontal !== 0 || vertical !== 0;
 	let stepX = 0;
 	let stepY = 0;
@@ -305,7 +339,10 @@ function moveAvatarFrame(ts) {
 	let avatarLngLat = avatar.getLngLat();
 
 	if (hasInput) {
-		const screenPos = mapStore.map.project([avatarLngLat.lng, avatarLngLat.lat]);
+		const screenPos = mapStore.map.project([
+			avatarLngLat.lng,
+			avatarLngLat.lat,
+		]);
 		const nextScreen = [screenPos.x + stepX, screenPos.y + stepY];
 		const nextLngLat = mapStore.map.unproject(nextScreen);
 		avatar.setLngLat([nextLngLat.lng, nextLngLat.lat]);
@@ -318,7 +355,8 @@ function moveAvatarFrame(ts) {
 }
 
 function onKeyDown(e) {
-	if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
+	if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key))
+		return;
 	e.preventDefault();
 	heldKeys.add(e.key);
 }
@@ -350,14 +388,18 @@ onMounted(async () => {
 		// Register click handlers for the three interactable location types
 		for (const typeId of Object.keys(INTERACTION_TYPES)) {
 			const layerId = `pikmin-points-${typeId}`;
-			const clickFn  = (e) => handleMapIconClick(typeId, e);
-			const enterFn  = () => { map.getCanvas().style.cursor = "pointer"; };
-			const leaveFn  = () => { map.getCanvas().style.cursor = ""; };
-			map.on("click",      layerId, clickFn);
+			const clickFn = (e) => handleMapIconClick(typeId, e);
+			const enterFn = () => {
+				map.getCanvas().style.cursor = "pointer";
+			};
+			const leaveFn = () => {
+				map.getCanvas().style.cursor = "";
+			};
+			map.on("click", layerId, clickFn);
 			map.on("mouseenter", layerId, enterFn);
 			map.on("mouseleave", layerId, leaveFn);
 			mapHandlers.push(
-				{ event: "click",      layer: layerId, fn: clickFn },
+				{ event: "click", layer: layerId, fn: clickFn },
 				{ event: "mouseenter", layer: layerId, fn: enterFn },
 				{ event: "mouseleave", layer: layerId, fn: leaveFn },
 			);
@@ -376,10 +418,19 @@ onMounted(async () => {
 onBeforeUnmount(() => {
 	window.removeEventListener("keydown", onKeyDown);
 	window.removeEventListener("keyup", onKeyUp);
-	if (moveRaf)    { cancelAnimationFrame(moveRaf); moveRaf = null; }
+	if (moveRaf) {
+		cancelAnimationFrame(moveRaf);
+		moveRaf = null;
+	}
 	lastMoveTs = 0;
-	if (flashTimer) { clearTimeout(flashTimer);  flashTimer = null; }
-	if (avatar)     { avatar.destroy();          avatar     = null; }
+	if (flashTimer) {
+		clearTimeout(flashTimer);
+		flashTimer = null;
+	}
+	if (avatar) {
+		avatar.destroy();
+		avatar = null;
+	}
 	if (mapStore.map) {
 		mapStore.map.keyboard.enable();
 		for (const { event, layer, fn } of mapHandlers) {
@@ -391,177 +442,168 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="pikmin-view">
-    <div
-      id="mapboxBox"
-      class="pikmin-map"
-    />
+	<div class="pikmin-view">
+		<div id="mapboxBox" class="pikmin-map" />
 
-    <div class="pikmin-hud-top">
-      <div class="pikmin-top-main">
-        <div class="pikmin-title">
-          <span class="pikmin-title-emoji">🌱</span>
-          <span>循環經濟探險</span>
-        </div>
-        <div class="pikmin-actions">
-          <button
-            class="pikmin-btn"
-            :disabled="isRequestingLocation"
-            @click="requestUserLocation"
-          >
-            {{ isRequestingLocation ? "定位中..." : "定位到我" }}
-          </button>
-          <button
-            class="pikmin-btn"
-            @click="recenter"
-          >
-            回到角色
-          </button>
-        </div>
-      </div>
-    </div>
+		<div class="pikmin-hud-top">
+			<div class="pikmin-top-main">
+				<div class="pikmin-title">
+					<span class="pikmin-title-emoji">🌱</span>
+					<span>循環經濟探險</span>
+				</div>
+				<div class="pikmin-actions">
+					<button
+						class="pikmin-btn"
+						:disabled="isRequestingLocation"
+						@click="requestUserLocation"
+					>
+						{{ isRequestingLocation ? "定位中..." : "定位到我" }}
+					</button>
+					<button class="pikmin-btn" @click="recenter">
+						回到角色
+					</button>
+				</div>
+			</div>
+		</div>
 
-    <div class="pikmin-bottom-panels">
-      <div class="pikmin-layer-panel">
-        <div class="pikmin-hud-label">
-          圖層
-        </div>
-        <div class="pikmin-layer-list">
-          <button
-            v-for="c in components"
-            :key="c.id"
-            class="pikmin-layer-btn"
-            :class="{ active: visible[c.id] }"
-            :style="{ '--c': c.color }"
-            :title="c.name"
-            @click="toggle(c.id)"
-          >
-            <span class="dot">{{ c.label }}</span>
-            <span class="name">{{ c.name }}</span>
-            <span
-              v-if="INTERACTION_TYPES[c.id]"
-              class="challenge-badge"
-            >★</span>
-          </button>
-        </div>
-      </div>
+		<div class="pikmin-bottom-panels">
+			<div class="pikmin-layer-panel">
+				<div class="pikmin-hud-label">圖層</div>
+				<div class="pikmin-layer-list">
+					<button
+						v-for="c in components"
+						:key="c.id"
+						class="pikmin-layer-btn"
+						:class="{ active: visible[c.id] }"
+						:style="{ '--c': c.color }"
+						:title="c.name"
+						@click="toggle(c.id)"
+					>
+						<span class="dot">{{ c.label }}</span>
+						<span class="name">{{ c.name }}</span>
+						<span
+							v-if="INTERACTION_TYPES[c.id]"
+							class="challenge-badge"
+							>★</span
+						>
+					</button>
+				</div>
+			</div>
 
-      <div class="xp-bar">
-        <div class="pikmin-hud-label">
-          Level
-        </div>
-        <div class="xp-level">
-          Lv.{{ xpLevel.level }}
-          <span class="xp-title">{{ xpLevel.title }}</span>
-        </div>
-        <div class="xp-track">
-          <div
-            class="xp-fill"
-            :style="{ width: xpProgress + '%' }"
-          />
-        </div>
-        <div class="xp-text">
-          {{ xp }} XP<template v-if="xpLevel.max">
-            / {{ xpLevel.max }}
-          </template>
-        </div>
-      </div>
-    </div>
+			<div class="xp-bar">
+				<div class="pikmin-hud-label">Level</div>
+				<div class="xp-level">
+					Lv.{{ xpLevel.level }}
+					<span class="xp-title">{{ xpLevel.title }}</span>
+				</div>
+				<div class="xp-track">
+					<div class="xp-fill" :style="{ width: xpProgress + '%' }" />
+				</div>
+				<div class="xp-text">
+					{{ xp }} XP<template v-if="xpLevel.max">
+						/ {{ xpLevel.max }}
+					</template>
+				</div>
+			</div>
+		</div>
 
-    <!-- Nearby location hint (bottom-center) -->
-    <transition name="fade">
-      <div
-        v-if="nearbyInfo && !activeDialog"
-        class="nearby-hint"
-      >
-        <span class="nearby-emoji">{{ nearbyInfo.emoji }}</span>
-        <span class="nearby-name">{{ nearbyInfo.name }}</span>
-        <span class="nearby-tip">點擊地圖圖標互動</span>
-      </div>
-    </transition>
+		<!-- Nearby location hint (bottom-center) -->
+		<transition name="fade">
+			<div v-if="nearbyInfo && !activeDialog" class="nearby-hint">
+				<span class="nearby-emoji">{{ nearbyInfo.emoji }}</span>
+				<span class="nearby-name">{{ nearbyInfo.name }}</span>
+				<span class="nearby-tip">點擊地圖圖標互動</span>
+			</div>
+		</transition>
 
-    <!-- Flash message -->
-    <transition name="fade">
-      <div
-        v-if="flashMessage"
-        class="flash-msg"
-        :class="flashMessage.type"
-      >
-        {{ flashMessage.text }}
-      </div>
-    </transition>
+		<!-- Flash message -->
+		<transition name="fade">
+			<div
+				v-if="flashMessage"
+				class="flash-msg"
+				:class="flashMessage.type"
+			>
+				{{ flashMessage.text }}
+			</div>
+		</transition>
 
-    <!-- Interaction dialog -->
-    <transition name="dialog-fade">
-      <div
-        v-if="activeDialog"
-        class="dialog-overlay"
-        @click.self="cancelInteraction"
-      >
-        <div
-          class="dialog-box"
-          :style="{ '--dialog-color': activeDialog.color }"
-        >
-          <div class="dialog-header">
-            <span class="dialog-emoji">{{ activeDialog.emoji }}</span>
-            <span class="dialog-name">{{ activeDialog.name }}</span>
-          </div>
-          <div class="dialog-action">
-            {{ activeDialog.action }}
-          </div>
-          <div class="dialog-xp">
-            完成可獲得 +{{ activeDialog.xp }} XP
-          </div>
-          <div class="dialog-btns">
-            <button
-              class="dialog-btn confirm"
-              @click="confirmInteraction"
-            >
-              是，參與！
-            </button>
-            <button
-              class="dialog-btn cancel"
-              @click="cancelInteraction"
-            >
-              暫不參與
-            </button>
-          </div>
-        </div>
-      </div>
-    </transition>
+		<!-- Interaction dialog -->
+		<transition name="dialog-fade">
+			<div
+				v-if="activeDialog"
+				class="dialog-overlay"
+				@click.self="cancelInteraction"
+			>
+				<div
+					class="dialog-box"
+					:style="{ '--dialog-color': activeDialog.color }"
+				>
+					<div class="dialog-header">
+						<span class="dialog-emoji">{{
+							activeDialog.emoji
+						}}</span>
+						<span class="dialog-name">{{ activeDialog.name }}</span>
+					</div>
+					<div class="dialog-action">
+						{{ activeDialog.action }}
+					</div>
+					<div class="dialog-xp">
+						完成可獲得 +{{ activeDialog.xp }} XP
+					</div>
+					<div class="dialog-btns">
+						<button
+							class="dialog-btn confirm"
+							@click="confirmInteraction"
+						>
+							是，參與！
+						</button>
+						<button
+							class="dialog-btn cancel"
+							@click="cancelInteraction"
+						>
+							暫不參與
+						</button>
+					</div>
+				</div>
+			</div>
+		</transition>
 
-    <transition name="dialog-fade">
-      <div
-        v-if="locationPermissionModal && !activeDialog"
-        class="dialog-overlay"
-      >
-        <div class="dialog-box location-dialog">
-          <div class="dialog-header">
-            <span class="dialog-emoji">📍</span>
-            <span class="dialog-name">需要定位權限</span>
-          </div>
-          <div class="dialog-action">
-            請允許定位權限，讓小狐狸從你的目前位置開始探險。
-          </div>
-          <div class="dialog-btns">
-            <button
-              class="dialog-btn confirm"
-              :disabled="isRequestingLocation"
-              @click="requestUserLocation"
-            >
-              {{ isRequestingLocation ? "定位中..." : "重新要求權限" }}
-            </button>
-            <button
-              class="dialog-btn cancel"
-              @click="locationPermissionModal = false"
-            >
-              稍後再說
-            </button>
-          </div>
-        </div>
-      </div>
-    </transition>
-  </div>
+		<transition name="dialog-fade">
+			<div
+				v-if="locationPermissionModal && !activeDialog"
+				class="dialog-overlay"
+			>
+				<div class="dialog-box location-dialog">
+					<div class="dialog-header">
+						<span class="dialog-emoji">📍</span>
+						<span class="dialog-name">需要定位權限</span>
+					</div>
+					<div class="dialog-action">
+						請允許定位權限，讓小駭從你的目前位置開始探險。
+					</div>
+					<div class="dialog-btns">
+						<button
+							class="dialog-btn confirm"
+							:disabled="isRequestingLocation"
+							@click="requestUserLocation"
+						>
+							{{
+								isRequestingLocation
+									? "定位中..."
+									: "重新要求權限"
+							}}
+						</button>
+						<button
+							class="dialog-btn cancel"
+							@click="locationPermissionModal = false"
+						>
+							稍後再說
+						</button>
+					</div>
+				</div>
+			</div>
+		</transition>
+	</div>
 </template>
 
 <style scoped lang="scss">
@@ -637,7 +679,10 @@ onBeforeUnmount(() => {
 	color: #fff;
 	cursor: pointer;
 	font-size: 0.85rem;
-	transition: background 0.15s, border-color 0.15s, color 0.15s;
+	transition:
+		background 0.15s,
+		border-color 0.15s,
+		color 0.15s;
 
 	&:hover {
 		background: rgba(90, 156, 248, 0.15);
@@ -880,7 +925,10 @@ onBeforeUnmount(() => {
 	cursor: pointer;
 	font-size: 0.9rem;
 	font-weight: 600;
-	transition: background 0.15s, border-color 0.15s, color 0.15s;
+	transition:
+		background 0.15s,
+		border-color 0.15s,
+		color 0.15s;
 
 	&.confirm {
 		background: var(--dialog-color, #5a9cf8);
