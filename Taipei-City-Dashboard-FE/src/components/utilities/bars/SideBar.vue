@@ -157,7 +157,9 @@ onMounted(() => {
         </div>
       </transition>
     </template>
-    <h1>{{ isExpanded ? `互動遊戲` : `遊戲` }}</h1>
+    <h1 v-if="isExpanded">
+      互動遊戲
+    </h1>
     <router-link
       to="/explore"
       :class="{
@@ -170,7 +172,7 @@ onMounted(() => {
         class="fox-icon"
       >
         <img
-          src="../../../assets/images/arctic-fox.svg"
+          src="../../../assets/images/arctic-fox-white.svg"
           alt="小狐探城"
         >
       </span>
@@ -238,7 +240,7 @@ onMounted(() => {
 		.sidebar-collapse-btnContainer {
 			// Keep collapse button aligned with the "互動遊戲" heading row.
 			position: absolute;
-			top: 22px;
+			top: 19px;
 			right: 8px;
 			left: auto;
 			width: fit-content;
@@ -247,7 +249,7 @@ onMounted(() => {
 
 			&.notExpanded {
 				position: absolute;
-				top: 22px;
+				top: 19px;
 				right: 0;
 				left: auto;
 				width: fit-content;

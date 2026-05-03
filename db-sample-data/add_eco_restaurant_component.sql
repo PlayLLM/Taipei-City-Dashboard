@@ -58,7 +58,7 @@ SET index    = EXCLUDED.index,
 -- 3. 修正查詢邏輯 (改為 two_d 模式)
 DELETE FROM public.query_charts
 WHERE index = 'metrotaipei_eco_restaurant'
-  AND city = 'metrotaipei';
+  AND city IN ('taipei', 'metrotaipei');
 
 INSERT INTO public.query_charts (
     index,
@@ -81,7 +81,41 @@ INSERT INTO public.query_charts (
     query_chart,
     query_history,
     city
-) VALUES (
+) VALUES
+(
+    'metrotaipei_eco_restaurant',
+    NULL,
+    '{310}',
+    '{"mode":"byParam","byParam":{"xParam":"district"}}'::json,
+    'static',
+    NULL,
+    0,
+    NULL,
+    '環境部',
+    '顯示臺北市各行政區環保餐廳數量。',
+    '此圖表彙整臺北市之環保餐廳資料，以行政區統計據點數量，並搭配點位地圖呈現分布。',
+    '可用於檢視臺北市環保餐廳分布情形，推廣綠色消費與循環經濟。',
+    '{https://data.moenv.gov.tw/}',
+    '{doit}',
+    NOW(),
+    NOW(),
+    'two_d', -- 改為 two_d 模式，不再有系列標籤
+    'WITH districts AS (
+        SELECT unnest(ARRAY[''北投區'', ''士林區'', ''內湖區'', ''南港區'', ''松山區'', ''信義區'', ''中山區'', ''大同區'', ''中正區'', ''萬華區'', ''大安區'', ''文山區'']) AS district
+    )
+    SELECT
+        d.district AS x_axis,
+        COALESCE(SUM(s.count), 0)::int AS data
+    FROM districts d
+    LEFT JOIN public.eco_restaurant_stats s
+        ON s.district = d.district
+       AND s.city = ''臺北市''
+    GROUP BY d.district
+    ORDER BY data DESC, d.district',
+    NULL,
+    'taipei'
+),
+(
     'metrotaipei_eco_restaurant',
     NULL,
     '{310}',

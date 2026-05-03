@@ -54,7 +54,7 @@ SET index    = EXCLUDED.index,
 -- 3. 修正查詢邏輯 (two_d 模式)
 DELETE FROM public.query_charts
 WHERE index = 'metrotaipei_used_clothing_box'
-  AND city = 'metrotaipei';
+  AND city IN ('taipei', 'metrotaipei');
 
 INSERT INTO public.query_charts (
     index,
@@ -77,7 +77,41 @@ INSERT INTO public.query_charts (
     query_chart,
     query_history,
     city
-) VALUES (
+) VALUES
+(
+    'metrotaipei_used_clothing_box',
+    NULL,
+    '{331}',
+    '{"mode":"byParam","byParam":{"xParam":"district"}}'::json,
+    'static',
+    NULL,
+    0,
+    NULL,
+    '臺北市環保局',
+    '顯示臺北市各行政區舊衣回收箱數量。',
+    '此圖表彙整臺北市核准設置的舊衣回收箱資料，以行政區統計回收箱數量，並搭配點位地圖呈現分布。',
+    '可用於檢視回收箱布建情形，方便市民尋找鄰近回收據點，並作為資源回收政策評估參考。',
+    '{https://data.taipei/}',
+    '{doit}',
+    NOW(),
+    NOW(),
+    'two_d',
+    'WITH districts AS (
+        SELECT unnest(ARRAY[''北投區'', ''士林區'', ''內湖區'', ''南港區'', ''松山區'', ''信義區'', ''中山區'', ''大同區'', ''中正區'', ''萬華區'', ''大安區'', ''文山區'']) AS district
+    )
+    SELECT
+        d.district AS x_axis,
+        COALESCE(SUM(s.count), 0)::int AS data
+    FROM districts d
+    LEFT JOIN public.used_clothing_box_stats s
+        ON s.district = d.district
+       AND s.city = ''臺北市''
+    GROUP BY d.district
+    ORDER BY data DESC, d.district',
+    NULL,
+    'taipei'
+),
+(
     'metrotaipei_used_clothing_box',
     NULL,
     '{331}',

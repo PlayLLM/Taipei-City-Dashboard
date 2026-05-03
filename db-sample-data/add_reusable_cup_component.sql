@@ -59,7 +59,7 @@ SET index    = EXCLUDED.index,
 -- 3. 修正查詢邏輯 (改為 two_d 模式)
 DELETE FROM public.query_charts
 WHERE index = 'metrotaipei_reusable_cup'
-  AND city = 'metrotaipei';
+  AND city IN ('taipei', 'metrotaipei');
 
 INSERT INTO public.query_charts (
     index,
@@ -82,7 +82,41 @@ INSERT INTO public.query_charts (
     query_chart,
     query_history,
     city
-) VALUES (
+) VALUES
+(
+    'metrotaipei_reusable_cup',
+    NULL,
+    '{311}',
+    '{"mode":"byParam","byParam":{"xParam":"district"}}'::json,
+    'static',
+    NULL,
+    0,
+    NULL,
+    '環境部',
+    '顯示臺北市各行政區循環杯服務門市數量。',
+    '此圖表彙整臺北市提供循環杯服務的業者門市，以行政區統計服務點數量，並搭配點位地圖呈現分布。',
+    '可用於檢視臺北市循環杯服務布建情形，作為循環經濟、減塑政策與服務據點配置參考。',
+    '{https://data.moenv.gov.tw/}',
+    '{doit}',
+    NOW(),
+    NOW(),
+    'two_d', -- 改為 two_d 模式
+    'WITH districts AS (
+        SELECT unnest(ARRAY[''北投區'', ''士林區'', ''內湖區'', ''南港區'', ''松山區'', ''信義區'', ''中山區'', ''大同區'', ''中正區'', ''萬華區'', ''大安區'', ''文山區'']) AS district
+    )
+    SELECT
+        d.district AS x_axis,
+        COALESCE(SUM(s.count), 0)::int AS data
+    FROM districts d
+    LEFT JOIN public.reusable_cup_stats s
+        ON s.district = d.district
+       AND s.city = ''臺北市''
+    GROUP BY d.district
+    ORDER BY data DESC, d.district',
+    NULL,
+    'taipei'
+),
+(
     'metrotaipei_reusable_cup',
     NULL,
     '{311}',
