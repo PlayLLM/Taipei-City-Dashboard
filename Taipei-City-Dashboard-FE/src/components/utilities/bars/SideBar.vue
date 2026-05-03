@@ -168,16 +168,16 @@ onMounted(() => {
       }"
     >
       <span
-        :title="!isExpanded ? '小狐探城' : ''"
+        :title="!isExpanded ? '小駭探城' : ''"
         class="fox-icon"
       >
         <img
           src="../../../assets/images/arctic-fox-white.svg"
-          alt="小狐探城"
+          alt="小駭探城"
         >
       </span>
       <h3 v-if="isExpanded">
-        小狐探城
+        小駭探城
       </h3>
     </router-link>
     <h1 @click="toggleCollapse(contentStore.cityManager.activeCities)">

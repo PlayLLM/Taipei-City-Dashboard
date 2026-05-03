@@ -29,11 +29,14 @@ let moveRaf = null;
 let lastMoveTs = 0;
 const DEFAULT_START_CENTER = [121.536609, 25.044808];
 
-// Only these three types are interactable challenge points
+// All six layer types are interactable challenge points
 const INTERACTION_TYPES = {
-	clothing:   { name: "舊衣回收箱", emoji: "👕", action: "是否投入舊衣？",     xp: 20, color: "#2B5FBF" },
-	hotel:      { name: "環保旅宿",   emoji: "🏨", action: "是否要 Check in？",  xp: 50, color: "#2E8B57" },
-	restaurant: { name: "環保餐廳",   emoji: "🍽",  action: "是否要用餐？",        xp: 30, color: "#E07B00" },
+	clothing:   { name: "舊衣回收箱", emoji: "👕", action: "是否投入舊衣？",        xp: 20, color: "#2B5FBF" },
+	hotel:      { name: "環保旅宿",   emoji: "🏨", action: "是否要 Check in？",     xp: 50, color: "#2E8B57" },
+	restaurant: { name: "環保餐廳",   emoji: "🍽",  action: "是否要用餐？",          xp: 30, color: "#E07B00" },
+	cup:        { name: "循環杯門市", emoji: "🥤", action: "是否要租用循環杯？",    xp: 30, color: "#0EA5A0" },
+	charging:   { name: "機車充電站", emoji: "🔋", action: "是否要為機車充電？",    xp: 25, color: "#D4A017" },
+	fountain:   { name: "飲水機",     emoji: "💧", action: "是否要裝水補給？",       xp: 15, color: "#3FA9F5" },
 };
 
 const XP_LEVELS = [
@@ -49,7 +52,9 @@ const xp            = ref(0);
 const nearbyInfo    = ref(null);   // { typeId, name, emoji, action, xp, color }
 const activeDialog  = ref(null);   // same shape
 const flashMessage  = ref(null);   // { text, type: 'error'|'success' }
-const locationData  = ref({ clothing: [], hotel: [], restaurant: [] });
+const locationData  = ref(
+	Object.fromEntries(Object.keys(INTERACTION_TYPES).map((id) => [id, []])),
+);
 const locationPermissionModal = ref(false);
 const isRequestingLocation = ref(false);
 
@@ -275,7 +280,7 @@ function moveAvatarFrame(ts) {
 	const deltaSec = Math.min((ts - lastMoveTs) / 1000, 0.05);
 	lastMoveTs = ts;
 
-	const { map } = mapStore;
+`	const { map } = mapStore;
 	const horizontal = (heldKeys.has("ArrowRight") ? 1 : 0) - (heldKeys.has("ArrowLeft") ? 1 : 0);
 	const vertical = (heldKeys.has("ArrowUp") ? 1 : 0) - (heldKeys.has("ArrowDown") ? 1 : 0);
 	const hasInput = horizontal !== 0 || vertical !== 0;

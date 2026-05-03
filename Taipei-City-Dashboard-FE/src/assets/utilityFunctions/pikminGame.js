@@ -193,6 +193,9 @@ export class AvatarMarker {
 		this.map        = map;
 		this.frameCount = frameCount;
 		this.frameMs    = frameMs;
+		// `size` is the rendered avatar height in CSS pixels; the width is
+		// derived from the sprite's natural aspect ratio once the first frame
+		// loads, so portrait sprites aren't stretched into a square canvas.
 		this.size       = size;
 
 		this._idx         = 2;   // standing frame
@@ -203,6 +206,7 @@ export class AvatarMarker {
 		this._lastFrameTime = 0;
 		this._rafId       = null;
 		this._loadedCount = 0;
+		this._aspectFixed = false;
 
 		const dpr = Math.min(window.devicePixelRatio || 1, 2);
 		this._dpr = dpr;
@@ -232,6 +236,7 @@ export class AvatarMarker {
 		this._frames = Array.from({ length: frameCount }, (_, i) => {
 			const img = new Image();
 			img.onload = () => {
+				this._fitCanvasToFrame(img);
 				this._loadedCount++;
 				if (i === this._idx || this._loadedCount === frameCount) this._drawFrame(this._idx);
 			};
@@ -239,6 +244,20 @@ export class AvatarMarker {
 			img.src = `/images/pikmin/avatar/${i + 1}.webp`;
 			return img;
 		});
+	}
+
+	_fitCanvasToFrame(img) {
+		if (this._aspectFixed) return;
+		if (!img.naturalWidth || !img.naturalHeight) return;
+		this._aspectFixed = true;
+		const aspect = img.naturalWidth / img.naturalHeight;
+		const width  = Math.round(this.size * aspect);
+		const height = this.size;
+		const canvas = this._canvas;
+		canvas.width  = width  * this._dpr;
+		canvas.height = height * this._dpr;
+		canvas.style.width  = `${width}px`;
+		canvas.style.height = `${height}px`;
 	}
 
 	_drawFrame(idx) {
