@@ -280,7 +280,7 @@ function moveAvatarFrame(ts) {
 	const deltaSec = Math.min((ts - lastMoveTs) / 1000, 0.05);
 	lastMoveTs = ts;
 
-`	const { map } = mapStore;
+	const { map } = mapStore;
 	const horizontal = (heldKeys.has("ArrowRight") ? 1 : 0) - (heldKeys.has("ArrowLeft") ? 1 : 0);
 	const vertical = (heldKeys.has("ArrowUp") ? 1 : 0) - (heldKeys.has("ArrowDown") ? 1 : 0);
 	const hasInput = horizontal !== 0 || vertical !== 0;
