@@ -190,7 +190,7 @@ function toggleChatDisplayMode() {
 		timeToUpdate.value = frequency.value;
 	},
 ),
-{ immediate: true });
+	{ immediate: true });
 
 // Explore 頁不顯示小幫手；若先前為側邊欄模式，需關閉以免留下縮排版面與右側空隙。
 watch(
@@ -492,7 +492,7 @@ onBeforeUnmount(() => {
 			align-items: center;
 			justify-content: center;
 			border-radius: 50%;
-			background-color: #3b82f6; // Tailwind bg-blue-500
+			background-color: #282a2c;
 			filter: brightness(1.5);
 			transition: filter 0.2s;
 
