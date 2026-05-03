@@ -28,7 +28,6 @@ const heldKeys = new Set();
 let moveRaf = null;
 let lastMoveTs = 0;
 const DEFAULT_START_CENTER = [121.536609, 25.044808];
-const AVATAR_SCREEN_Y_RATIO = 0.64;
 
 // Only these three types are interactable challenge points
 const INTERACTION_TYPES = {
@@ -157,7 +156,7 @@ function toggle(id) {
 function recenter() {
 	if (!mapStore.map || !avatar) return;
 	const pos = avatar.getLngLat();
-	followAvatar([pos.lng, pos.lat], { duration: 800, resetBearing: true });
+	centerMapOnAvatar([pos.lng, pos.lat], { resetBearing: true });
 }
 
 function getCurrentPosition() {
@@ -254,27 +253,19 @@ async function requestUserLocation() {
 	const center = await tryGetUserCenter(true);
 	if (!center || !mapStore.map || !avatar) return;
 	avatar.setLngLat(center);
-	followAvatar(center, { duration: 800, resetBearing: true });
+	centerMapOnAvatar(center, { resetBearing: true });
 	checkProximity(center);
 }
 
 // ─── Avatar Movement ─────────────────────────────────────────────────────────
 
-function getAvatarCameraOffset() {
-	const canvas = mapStore.map?.getCanvas();
-	if (!canvas) return [0, 0];
-	return [0, canvas.clientHeight * (AVATAR_SCREEN_Y_RATIO - 0.5)];
-}
-
-function followAvatar(center, { duration = 0, resetBearing = false } = {}) {
+function centerMapOnAvatar(center, { resetBearing = false } = {}) {
 	if (!mapStore.map) return;
-	mapStore.map.easeTo({
+	mapStore.map.jumpTo({
 		center,
-		offset: getAvatarCameraOffset(),
 		zoom: 18.2,
 		pitch: 60,
 		...(resetBearing ? { bearing: 0 } : {}),
-		duration,
 	});
 }
 
@@ -305,13 +296,14 @@ function moveAvatarFrame(ts) {
 	let avatarLngLat = avatar.getLngLat();
 
 	if (hasInput) {
-		const screenPos = mapStore.map.project([avatarLngLat.lng, avatarLngLat.lat]);
-		const nextScreen = [screenPos.x + stepX, screenPos.y + stepY];
+		const mapCenter = mapStore.map.getCenter();
+		const centerScreen = mapStore.map.project(mapCenter);
+		const nextScreen = [centerScreen.x + stepX, centerScreen.y + stepY];
 		const nextLngLat = mapStore.map.unproject(nextScreen);
 		avatar.setLngLat([nextLngLat.lng, nextLngLat.lat]);
 		avatarLngLat = nextLngLat;
+		centerMapOnAvatar([avatarLngLat.lng, avatarLngLat.lat]);
 	}
-	followAvatar([avatarLngLat.lng, avatarLngLat.lat]);
 	checkProximity([avatarLngLat.lng, avatarLngLat.lat]);
 
 	moveRaf = requestAnimationFrame(moveAvatarFrame);
@@ -341,7 +333,7 @@ onMounted(async () => {
 		applyGameEnvironment(map);
 		hideMinorRoadLabels(map);
 		hideMapboxPOIs(map);
-		followAvatar(initialCenter);
+		centerMapOnAvatar(initialCenter);
 
 		avatar = new AvatarMarker(map, initialCenter);
 		avatar.start(); // no-op; animation controlled by setMoving()
