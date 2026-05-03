@@ -157,7 +157,7 @@ onMounted(() => {
 				</div>
 			</transition>
 		</template>
-		<h1>{{ isExpanded ? `互動遊戲` : `遊戲` }}</h1>
+		<h1 v-if="isExpanded">互動遊戲</h1>
 		<router-link
 			to="/explore"
 			:class="{
@@ -165,13 +165,13 @@ onMounted(() => {
 				'sidebartab-active': route.path === '/explore',
 			}"
 		>
-			<span :title="!isExpanded ? '小駭探城' : ''" class="fox-icon">
+			<span :title="!isExpanded ? '小狐探城' : ''" class="fox-icon">
 				<img
-					src="../../../assets/images/arctic-fox.svg"
-					alt="小駭探城"
+					src="../../../assets/images/arctic-fox-white.svg"
+					alt="小狐探城"
 				/>
 			</span>
-			<h3 v-if="isExpanded">小駭探城</h3>
+			<h3 v-if="isExpanded">小狐探城</h3>
 		</router-link>
 		<h1 @click="toggleCollapse(contentStore.cityManager.activeCities)">
 			{{ isExpanded ? `公共儀表板` : `公共` }}
@@ -237,7 +237,7 @@ onMounted(() => {
 		.sidebar-collapse-btnContainer {
 			// Keep collapse button aligned with the "互動遊戲" heading row.
 			position: absolute;
-			top: 22px;
+			top: 19px;
 			right: 8px;
 			left: auto;
 			width: fit-content;
@@ -246,7 +246,7 @@ onMounted(() => {
 
 			&.notExpanded {
 				position: absolute;
-				top: 22px;
+				top: 19px;
 				right: 0;
 				left: auto;
 				width: fit-content;

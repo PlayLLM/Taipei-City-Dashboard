@@ -16,9 +16,9 @@ BEGIN;
 
 INSERT INTO public.dashboards (id, index, name, components, icon, updated_at, created_at)
 VALUES (
-    401,
-    'climate-environment',
-    '氣候環境',
+    999,
+    'all-in-one',
+    '淨零生活',
     '{}',
     'eco',
     NOW(),
@@ -32,8 +32,8 @@ SET name = EXCLUDED.name,
 INSERT INTO public.dashboard_groups (dashboard_id, group_id)
 SELECT d.id, g.id
 FROM public.dashboards d
-JOIN public.groups g ON g.name IN ('public', 'taipei') AND g.is_personal IS FALSE
-WHERE d.index = 'climate-environment'
+JOIN public.groups g ON g.name = 'metrotaipei' AND g.is_personal IS FALSE
+WHERE d.index = 'all-in-one'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO public.components (id, index, name)
@@ -46,7 +46,7 @@ INSERT INTO public.component_charts (index, color, types, unit)
 VALUES (
     'metrotaipei_drinking_fountain',
     ARRAY['#2F8AB1', '#4CB495'],
-    ARRAY['ColumnChart'],
+    ARRAY['DistrictChart', 'ColumnChart'],
     '處'
 )
 ON CONFLICT (index) DO UPDATE
@@ -91,7 +91,7 @@ SET index = EXCLUDED.index,
 
 DELETE FROM public.query_charts
 WHERE index = 'metrotaipei_drinking_fountain'
-  AND city = 'metrotaipei';
+  AND city IN ('taipei', 'metrotaipei');
 
 INSERT INTO public.query_charts (
     index,
@@ -114,7 +114,63 @@ INSERT INTO public.query_charts (
     query_chart,
     query_history,
     city
-) VALUES (
+) VALUES
+(
+    'metrotaipei_drinking_fountain',
+    NULL,
+    '{330}',
+    '{"mode":"byParam","byParam":{"xParam":"district","yParam":"source_type"}}'::json,
+    'static',
+    NULL,
+    0,
+    NULL,
+    '臺北自來水事業處',
+    '顯示臺北市各行政區飲水機與直飲臺數量。',
+    '此圖表彙整臺北市公共場所飲水機與直飲臺資料，以行政區統計各類型點位數量，並搭配點位地圖呈現分布。',
+    '可用於檢視臺北市公共飲水設施的布建情形，作為民眾查詢與公共服務配置參考。',
+    '{https://gismobile.water.gov.taipei/}',
+    '{doit}',
+    NOW(),
+    NOW(),
+    'three_d',
+    'WITH districts AS (
+        SELECT district, sort_order
+        FROM unnest(ARRAY[''北投區'', ''士林區'', ''內湖區'', ''南港區'', ''松山區'', ''信義區'', ''中山區'', ''大同區'', ''中正區'', ''萬華區'', ''大安區'', ''文山區''])
+        WITH ORDINALITY AS d(district, sort_order)
+    ), types AS (
+        SELECT source_type, sort_order
+        FROM unnest(ARRAY[''飲水機'', ''直飲臺''])
+        WITH ORDINALITY AS t(source_type, sort_order)
+    ), stats AS (
+        SELECT district, source_type, COUNT(*)::int AS count
+        FROM public.drinking_fountain_sites
+        WHERE city = ''臺北市''
+        GROUP BY district, source_type
+    ), active_districts AS (
+        SELECT d.district, d.sort_order
+        FROM districts d
+        WHERE EXISTS (
+            SELECT 1
+            FROM stats s
+            WHERE s.district = d.district
+        )
+    )
+    SELECT
+        d.district AS x_axis,
+        t.source_type AS y_axis,
+        COALESCE(s.count, 0)::int AS data
+    FROM active_districts d
+    CROSS JOIN types t
+    LEFT JOIN stats s
+        ON s.district = d.district
+       AND s.source_type = t.source_type
+    ORDER BY
+        d.sort_order,
+        t.sort_order',
+    NULL,
+    'taipei'
+),
+(
     'metrotaipei_drinking_fountain',
     NULL,
     '{330}',
@@ -173,7 +229,7 @@ INSERT INTO public.query_charts (
 UPDATE public.dashboards
 SET components = array_append(components, 314),
     updated_at = NOW()
-WHERE index = 'climate-environment'
+WHERE index = 'all-in-one'
   AND NOT 314 = ANY(components);
 
 COMMIT;

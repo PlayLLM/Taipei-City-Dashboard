@@ -74,7 +74,7 @@ SET index = EXCLUDED.index,
 -- 3. 查詢邏輯 (two_d)
 DELETE FROM public.query_charts
 WHERE index = 'metrotaipei_scooter_charging'
-  AND city = 'metrotaipei';
+  AND city IN ('taipei', 'metrotaipei');
 
 INSERT INTO public.query_charts (
     index,
@@ -97,7 +97,41 @@ INSERT INTO public.query_charts (
     query_chart,
     query_history,
     city
-) VALUES (
+) VALUES
+(
+    'metrotaipei_scooter_charging',
+    NULL,
+    '{320}',
+    '{"mode":"byParam","byParam":{"xParam":"district"}}'::json,
+    'static',
+    NULL,
+    0,
+    NULL,
+    '臺北市政府',
+    '顯示臺北市各行政區機車充電站數量。',
+    '此圖表彙整臺北市機車充電站資料，以行政區統計站點數量，並搭配點位地圖呈現分布情形。',
+    '可用於檢視臺北市機車充電站分布情形，作為電動機車補給規劃與建置參考。',
+    '{https://data.taipei/}',
+    '{doit}',
+    NOW(),
+    NOW(),
+    'two_d',
+    'WITH districts AS (
+        SELECT unnest(ARRAY[''北投區'', ''士林區'', ''內湖區'', ''南港區'', ''松山區'', ''信義區'', ''中山區'', ''大同區'', ''中正區'', ''萬華區'', ''大安區'', ''文山區'']) AS district
+    )
+    SELECT
+        d.district AS x_axis,
+        COALESCE(SUM(s.count), 0)::int AS data
+    FROM districts d
+    LEFT JOIN public.scooter_charging_station_stats s
+        ON s.district = d.district
+       AND s.city = ''臺北市''
+    GROUP BY d.district
+    ORDER BY data DESC, d.district',
+    NULL,
+    'taipei'
+),
+(
     'metrotaipei_scooter_charging',
     NULL,
     '{320}',

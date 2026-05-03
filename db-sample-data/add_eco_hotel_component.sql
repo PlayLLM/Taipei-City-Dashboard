@@ -22,7 +22,7 @@ INSERT INTO public.component_charts (index, color, types, unit)
 VALUES (
     'eco_hotel',
     ARRAY['#F5C518', '#ABABAB', '#CD7F32'],
-    ARRAY['ColumnChart'],
+    ARRAY['DistrictChart', 'ColumnChart'],
     '間'
 )
 ON CONFLICT (index) DO UPDATE
@@ -147,7 +147,7 @@ VALUES
     'eco_hotel',
     NULL,
     '{300}',
-    '{"mode":"byParam","byParam":{"xParam":"grade"}}'::json,
+    '{"mode":"byParam","byParam":{"xParam":"district","yParam":"grade"}}'::json,
     'static',
     NULL,
     0,
@@ -181,7 +181,7 @@ VALUES
     'eco_hotel',
     NULL,
     '{301}',
-    '{"mode":"byParam","byParam":{"xParam":"grade"}}'::json,
+    '{"mode":"byParam","byParam":{"xParam":"district","yParam":"grade"}}'::json,
     'static',
     NULL,
     0,
