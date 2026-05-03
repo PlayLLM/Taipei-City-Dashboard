@@ -263,7 +263,7 @@ function centerMapOnAvatar(center, { resetBearing = false } = {}) {
 	if (!mapStore.map) return;
 	mapStore.map.jumpTo({
 		center,
-		zoom: 18.2,
+		zoom: 18.4,
 		pitch: 60,
 		...(resetBearing ? { bearing: 0 } : {}),
 	});
