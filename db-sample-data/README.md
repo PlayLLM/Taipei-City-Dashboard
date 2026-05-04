@@ -21,8 +21,9 @@ docker compose -f docker-compose-init.yaml up
 
 # 4) 啟動 Nginx + FE + BE
 docker compose -f docker-compose.yaml up -d
-cd ..
-node scripts/apply_dashboardmanager_consistency_repairs.mjs
+
+# 5) 匯入我們新增的 dashboard 與 component 資料
+node ../scripts/apply_dashboardmanager_consistency_repairs.mjs
 ```
 
 最後一支 script 會補上 base seed 以外的資料處理流程：

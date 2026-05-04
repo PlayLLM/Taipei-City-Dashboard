@@ -230,6 +230,7 @@ const managerSqlFiles = [
   "add_green_store_component.sql",
   "add_all_in_one_dashboard.sql",
   "repair_dashboardmanager_consistency.sql",
+  "update_netzero_contributors.sql",
   "audit_dashboardmanager_integrity.sql",
 ];
 
